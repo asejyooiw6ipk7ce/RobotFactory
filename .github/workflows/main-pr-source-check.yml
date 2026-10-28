@@ -1,0 +1,26 @@
+name: Main PR Source Check
+
+# main으로 가는 PR은 develop 브랜치에서 온 것만 허용한다.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: develop 브랜치에서 온 PR인지 확인
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "포크에서 온 PR은 main으로 보낼 수 없습니다."
+            exit 1
+          fi
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "main으로 가는 PR은 develop 브랜치에서만 만들 수 있습니다. (현재 출발 브랜치: $HEAD_REF)"
+            exit 1
+          fi
+          echo "develop -> main PR 확인 완료"
