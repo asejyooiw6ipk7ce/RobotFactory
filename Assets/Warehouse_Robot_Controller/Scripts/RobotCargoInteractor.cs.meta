@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 365b9e21d8afb0f49aa58da124ad8490
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 389700
+  packageName: Warehouse Robot Controller
+  packageVersion: 1.0
+  assetPath: Assets/Warehouse_Robot_Controller/Scripts/RobotCargoInteractor.cs
+  uploadId: 943844

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 684eee5f1e2ca344fb2a8e848996d0e7
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 389700
+  packageName: Warehouse Robot Controller
+  packageVersion: 1.0
+  assetPath: Assets/Warehouse_Robot_Controller/Scripts/ShelfInteractionZone.cs
+  uploadId: 943844

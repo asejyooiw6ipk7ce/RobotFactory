@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: 0ca75d97c08f45b38f1b21ae6d6eb6c8
+timeCreated: 1767949281
+AssetOrigin:
+  serializedVersion: 1
+  productId: 354922
+  packageName: Modular Conveyor Belt System
+  packageVersion: 1.1.0
+  assetPath: Assets/Conveyor System/Script/Conveyor/Type/JoinerConveyor.cs
+  uploadId: 1010908

@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: 88cbda93a54e4b60b68ab2f4eef158ad
+timeCreated: 1767949266
+AssetOrigin:
+  serializedVersion: 1
+  productId: 354922
+  packageName: Modular Conveyor Belt System
+  packageVersion: 1.1.0
+  assetPath: Assets/Conveyor System/Script/Conveyor/Type/SmartSplitterConveyor.cs
+  uploadId: 1010908

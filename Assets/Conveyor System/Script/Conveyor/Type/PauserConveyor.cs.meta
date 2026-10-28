@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: 1189393bd7c24694baf5f172907422f9
+timeCreated: 1767949309
+AssetOrigin:
+  serializedVersion: 1
+  productId: 354922
+  packageName: Modular Conveyor Belt System
+  packageVersion: 1.1.0
+  assetPath: Assets/Conveyor System/Script/Conveyor/Type/PauserConveyor.cs
+  uploadId: 1010908

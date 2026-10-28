@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 5b5ff4d5427d8ba4f88972b52f75ec35
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 389700
+  packageName: Warehouse Robot Controller
+  packageVersion: 1.0
+  assetPath: Assets/Warehouse_Robot_Controller/Scripts/GridSnapObject.cs
+  uploadId: 943844

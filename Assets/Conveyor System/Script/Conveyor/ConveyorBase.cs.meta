@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: 5dd6a1c2f28c4691990288e21407a5d3
+timeCreated: 1767949169
+AssetOrigin:
+  serializedVersion: 1
+  productId: 354922
+  packageName: Modular Conveyor Belt System
+  packageVersion: 1.1.0
+  assetPath: Assets/Conveyor System/Script/Conveyor/ConveyorBase.cs
+  uploadId: 1010908

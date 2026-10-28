@@ -1,0 +1,10 @@
+fileFormatVersion: 2
+guid: ced22f4b778342d68eb950944c868050
+timeCreated: 1767949232
+AssetOrigin:
+  serializedVersion: 1
+  productId: 354922
+  packageName: Modular Conveyor Belt System
+  packageVersion: 1.1.0
+  assetPath: Assets/Conveyor System/Script/Conveyor/Type/CornerConveyor.cs
+  uploadId: 1010908
