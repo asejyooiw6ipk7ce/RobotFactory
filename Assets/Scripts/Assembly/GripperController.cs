@@ -316,8 +316,12 @@ public class GripperController : MonoBehaviour
     {
         if (HeldPart == null) return;
 
-        HeldPart.transform.SetParent(null, true);
-        HeldPart.isKinematic = false;
+        // 이미 조립 소켓(moto_base 등)에 스냅 결합되어 부모가 변경된 부품은 분리/낙하시키지 않고 참조만 해제
+        if (attachPoint == null || HeldPart.transform.parent == attachPoint)
+        {
+            HeldPart.transform.SetParent(null, true);
+            HeldPart.isKinematic = false;
+        }
         HeldPart = null;
 
         if (rightContact != null) rightContact.Clear();
