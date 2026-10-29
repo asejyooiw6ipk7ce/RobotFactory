@@ -86,7 +86,7 @@ namespace RobotFactory
             counters[CounterType.Input] = root.Q<Label>("count-input");
             counters[CounterType.Inspected] = root.Q<Label>("count-inspected");
             counters[CounterType.Discarded] = root.Q<Label>("count-discarded");
-            counters[CounterType.DefectConveyor] = root.Q<Label>("count-defect");
+            counters[CounterType.Defective] = root.Q<Label>("count-defect");
             counters[CounterType.Shipped] = root.Q<Label>("count-shipped");
 
             robotStates[1] = root.Q<Label>("robot1-state");

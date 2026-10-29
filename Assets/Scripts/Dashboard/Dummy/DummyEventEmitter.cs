@@ -58,11 +58,11 @@ namespace RobotFactory
                     if (fail) ProcessCounters.Add(CounterType.Discarded);
                     break;
                 case StationId.Station2:
-                    if (fail) ProcessCounters.Add(CounterType.DefectConveyor);
+                    if (fail) ProcessCounters.Add(CounterType.Defective);
                     break;
                 case StationId.Station3:
                     ProcessCounters.Add(CounterType.Inspected);
-                    ProcessCounters.Add(fail ? CounterType.DefectConveyor : CounterType.Shipped);
+                    ProcessCounters.Add(fail ? CounterType.Defective : CounterType.Shipped);
                     break;
             }
         }
