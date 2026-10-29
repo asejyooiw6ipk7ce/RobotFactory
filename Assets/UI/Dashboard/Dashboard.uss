@@ -1,0 +1,177 @@
+/* 다크 테마 색 토큰 */
+:root {
+    --bg: #111827;
+    --card: #1f2937;
+    --card-border: #374151;
+    --text: #f3f4f6;
+    --text-dim: #9ca3af;
+    --good: #22c55e;
+    --bad: #ef4444;
+    --robot-work: #3b82f6;
+    --robot-assemble: #f97316;
+    --alert-bg: #3b1010;
+    --alert-border: #ef4444;
+}
+
+/* 한글 폰트: Assets/Fonts의 Pretendard 폰트 자산을 지정한다. */
+.dash {
+    -unity-font-definition: url("project://database/Assets/Fonts/Pretendard-Regular SDF.asset");
+    width: 460px;
+    height: 100%;
+    padding: 16px;
+    background-color: var(--bg);
+    color: var(--text);
+    flex-direction: column;
+}
+
+.row {
+    flex-direction: row;
+    margin-bottom: 8px;
+}
+
+.card {
+    background-color: var(--card);
+    border-width: 1px;
+    border-color: var(--card-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    flex-grow: 1;
+    align-items: center;
+}
+
+.card-half {
+    width: 50%;
+    margin-right: 8px;
+}
+
+.card-third {
+    width: 33%;
+    margin-right: 8px;
+}
+
+.card-station.is-alert {
+    border-color: var(--bad);
+    border-width: 2px;
+}
+
+.card-caption {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.card-title {
+    color: var(--text-dim);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+}
+
+.kpi-value {
+    font-size: 36px;
+    -unity-font-style: bold;
+    color: var(--good);
+}
+
+.value {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--text);
+}
+
+.tone-good .value {
+    color: var(--good);
+}
+
+.tone-bad .value {
+    color: var(--bad);
+}
+
+.robot-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.robot-name {
+    font-size: 16px;
+    color: var(--text);
+}
+
+.badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--text);
+    background-color: var(--card-border);
+}
+
+.state-working {
+    background-color: var(--robot-work);
+}
+
+.state-assembling {
+    background-color: var(--robot-assemble);
+}
+
+.state-error {
+    background-color: var(--bad);
+}
+
+.state-moving {
+    background-color: #0d9488;
+}
+
+.state-idle {
+    background-color: var(--card-border);
+}
+
+.alert-box {
+    background-color: var(--alert-bg);
+    border-width: 1px;
+    border-color: var(--alert-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    flex-grow: 1;
+}
+
+.alert-title {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.alert-item {
+    flex-direction: row;
+    align-items: center;
+    background-color: #5c1a1a;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+}
+
+.alert-tag {
+    background-color: var(--bad);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-right: 8px;
+}
+
+.alert-message {
+    color: var(--text);
+    font-size: 14px;
+}
+
+.alert-empty {
+    color: var(--text-dim);
+    font-size: 14px;
+}
