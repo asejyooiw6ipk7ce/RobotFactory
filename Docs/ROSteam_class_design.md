@@ -306,7 +306,7 @@ FinishedProductInspector ..> InspectEventBus : 검사 이벤트 발행
 
 %% ===== 조립 =====
 AssemblySequence --> PartInfo : 조립 대상 부품
-AssemblySequence --> BaseInfo : 조립 대상 베이스 (socket 위치·접근 방향)
+AssemblySequence --> BaseInfo : 조립 대상 베이스 (socket 위치·접근 방향, Accepts 호출로 장착 가능 여부 확인)
 AssemblySequence --> ArmIK : 로봇2 IK
 AssemblySequence --> GripperController : 그리퍼 Attach·Detach
 AssemblySequence ..> AngleErrorInjector : 각도 오차 적용
