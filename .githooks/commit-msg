@@ -1,0 +1,15 @@
+#!/bin/sh
+# 커밋 메시지 규칙: <type>[(scope)]: <설명>
+# type: feat | fix | docs | test | refactor
+msg=$(head -n 1 "$1")
+
+case "$msg" in
+  Merge*) exit 0 ;;
+esac
+
+if ! echo "$msg" | grep -Eq '^(feat|fix|docs|test|refactor|chore)(\([^)]+\))?: .+'; then
+  echo "커밋 메시지 규칙 위반: feat|fix|docs|test|refactor|chore 중 하나로 시작해야 합니다." >&2
+  echo "예: docs: 설계 문서 정리" >&2
+  echo "입력: $msg" >&2
+  exit 1
+fi
