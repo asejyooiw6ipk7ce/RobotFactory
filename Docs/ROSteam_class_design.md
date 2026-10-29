@@ -41,8 +41,16 @@ class RobotState {
 class ExitReason {
     <<enumeration>>
     Shipped
-    Rejected
+    DefectConveyor
     Discarded
+}
+class CounterType {
+    <<enumeration>>
+    Input
+    Inspected
+    Discarded
+    DefectConveyor
+    Shipped
 }
 
 %% ===== 제어 =====
@@ -76,7 +84,7 @@ namespace PartSupply {
         -float jointDefectRate
         +int OnLineCount
         +EnsureOnLines() void
-        +Spawn(PartKind type) PartInfo
+        +Spawn(PartKind type) PartBase
         -OnPartExited(PartExitEvent e) void
     }
     class ConveyorLine {
@@ -96,20 +104,27 @@ namespace PartSupply {
         +Vector3 NextSlot()
         +Add(List~Transform~ products) void
     }
+    class PartBase {
+        <<new>>
+        +string id
+        +DefectType defectType
+        +PartKind Kind
+    }
     class PartInfo {
         <<adapt>>
-        +int id
-        +PartKind type
-        +bool isDefective
-        +DefectType defectType
+        +float halfHeight
+        +float symmetryDeg
+        +float gripOffset
         +float assemblyAngleError
     }
     class BaseInfo {
         <<adapt>>
         +PartKind holeType
+        +float floorHeight
+        +float topHeight
         +Vector3 HoleCenter
         +Transform socket
-        +bool Accepts(PartInfo part)
+        +bool Accepts(PartBase part)
     }
 }
 
@@ -119,7 +134,7 @@ namespace Inspection {
         <<new>>
         +StationId id
         -int inspectCount
-        +Inspect(PartInfo part) InspectResult
+        +Inspect(PartBase part) InspectResult
     }
     class InspectRejectSequence {
         <<new>>
@@ -187,8 +202,14 @@ namespace EventsDashboard {
         <<new>>
         +Action~InspectEvent~ Published
         +Action~PartExitEvent~ PartExited
+        +Action~CounterType~ CounterAdded
+        +Action RobotStateChanged
         +Publish(InspectEvent e)$ void
         +PublishExit(PartExitEvent e)$ void
+    }
+    class ProcessCounters {
+        <<new>>
+        +Add(CounterType type)$ void
     }
     class InspectEvent {
         <<new>>
@@ -207,13 +228,11 @@ namespace EventsDashboard {
     }
     class StatsTracker {
         <<new>>
-        +float FinalYield
-        +int shipped
-        +int rejected
-        +int discarded
-        +DefectRate(StationId id) float
+        +Nullable~double~ FinalYieldRate
+        +Nullable~double~ StationDefectRate(StationId station)
+        +int Count(CounterType type)
         +Record(InspectEvent e) void
-        +RecordExit(PartExitEvent e) void
+        +Increment(CounterType type) void
     }
     class AlarmMonitor {
         <<new>>
@@ -244,8 +263,9 @@ MonoBehaviour <|-- ProcessController
 MonoBehaviour <|-- PartSpawner
 MonoBehaviour <|-- ConveyorLine
 MonoBehaviour <|-- RejectTote
-MonoBehaviour <|-- PartInfo
-MonoBehaviour <|-- BaseInfo
+MonoBehaviour <|-- PartBase
+PartBase <|-- PartInfo
+PartBase <|-- BaseInfo
 MonoBehaviour <|-- InspectStation
 MonoBehaviour <|-- InspectRejectSequence
 MonoBehaviour <|-- FinishedProductInspector
@@ -268,14 +288,13 @@ ProcessController --> AssemblySequence : 조립·폐기
 ProcessController --> RobotStatusTracker : 로봇 상태 갱신
 
 %% ===== 부품 공급과 이송 =====
-PartSpawner ..> PartInfo : 생성
-PartSpawner ..> BaseInfo : 생성
+PartSpawner ..> PartBase : 생성 (Claw → PartInfo, RobotModule → BaseInfo)
 PartSpawner ..> InspectEventBus : 공정 이탈 이벤트 구독
 ConveyorLine --> RejectTote : 불량 적재
 ConveyorLine ..> InspectEventBus : 출하·불량 이동 이벤트 발행
 
 %% ===== 검사 =====
-InspectStation ..> PartInfo : isDefective 읽기
+InspectStation ..> PartBase : defectType 읽기
 InspectStation ..> InspectEventBus : 검사 이벤트 발행
 InspectStation --> ArmIK : 로봇1 검사 자세
 InspectRejectSequence --> ArmIK : 로봇1 폐기 자세 IK
@@ -301,7 +320,7 @@ InspectEventBus ..> StatsTracker : 이벤트 구독
 InspectEventBus ..> AlarmMonitor : 이벤트 구독
 InspectEventBus ..> PartSpawner : 이탈 이벤트 구독
 StatsTracker ..> InspectEvent : Record 인자
-StatsTracker ..> PartExitEvent : RecordExit 인자
+ProcessCounters ..> InspectEventBus : 개수 이벤트 발행
 AlarmMonitor ..> InspectEvent : Record 인자
 PartExitEvent --> ExitReason
 PartExitEvent --> DefectType
@@ -311,13 +330,15 @@ Dashboard --> RobotStatusTracker : 로봇 상태 읽기
 RobotStatusTracker --> RobotState : 상태 값
 
 %% ===== 열거형 사용 =====
-PartInfo --> PartKind
-PartInfo --> DefectType
+PartBase --> PartKind
+PartBase --> DefectType
 InspectEvent --> InspectResult
 InspectEvent --> StationId
 InspectEvent --> DefectType
 InspectStation ..> StationId
 InspectStation ..> InspectResult
+StatsTracker ..> CounterType : 처리 개수 종류
+ProcessCounters ..> CounterType : 인자
 
 %% ===== TODO 표시 =====
 note for InspectStation "TODO: 검사 자세로 가는 방식(로봇1 IK 사용 여부)은 SRS에 없음"
@@ -327,13 +348,15 @@ note for PartExitEvent "TODO: 출하 이벤트를 ConveyorLine에서 발행하�
 note for InspectEventBus "TODO: static event 구현 방식 미정 (Unity 씬에서 쓸지 여부 포함)"
 note for InspectEventBus "TODO: 구독자 목록 관리 방식 미정. 지금은 의존으로 표시"
 note for InspectEventBus "TODO: 검사 외 이벤트(출하·폐기)도 담게 되어 버스 이름 재검토 필요"
+note for InspectEventBus "CounterAdded(CounterType), RobotStateChanged(int 로봇번호, RobotState)"
 note for AssemblySequence "TODO: 패키지의 EvaluateResult (InspectClass 반환)를 어느 쪽에 둘지 미정"
 note for AssemblySequence "TODO: Assemble은 currentBase.socket 위치·접근 방향으로 수평 삽입. 삽입 경로 구현 방식 미정"
 note for Dashboard "TODO: UI 바인딩 방식(TMP 직접 참조 또는 이벤트 구독) 미정"
-note for StatsTracker "TODO: MonoBehaviour 여부 미정 (순수 C# 클래스일 수 있음)"
+note for StatsTracker "구현: 순수 C# 클래스 (MonoBehaviour 아님). 처리 개수는 CounterType 사전으로 셈"
 note for AlarmMonitor "TODO: MonoBehaviour 여부 미정 (순수 C# 클래스일 수 있음)"
 note for RobotStatusTracker "TODO: MonoBehaviour 여부 미정 (순수 C# 클래스일 수 있음)"
 note for FinishedProductInspector "TODO: 완제품 촬영(FR-18)은 제외. 카메라 참조 추가 여부 미정"
+note for PartBase "abstract. Kind는 자식이 고정 (PartInfo=Claw, BaseInfo=RobotModule)"
 
 %% ===== 스타일 =====
 %% reuse: 초록
@@ -367,6 +390,9 @@ style InspectResult fill:#d3e3f7,stroke:#2f5d9e
 style StationId fill:#d3e3f7,stroke:#2f5d9e
 style RobotState fill:#d3e3f7,stroke:#2f5d9e
 style ExitReason fill:#d3e3f7,stroke:#2f5d9e
+style CounterType fill:#d3e3f7,stroke:#2f5d9e
+style PartBase fill:#d3e3f7,stroke:#2f5d9e
+style ProcessCounters fill:#d3e3f7,stroke:#2f5d9e
 
 ```
 
@@ -384,12 +410,13 @@ style ExitReason fill:#d3e3f7,stroke:#2f5d9e
 | --- | --- | --- | --- | --- |
 | `ProcessController` | adapt | `CellController` | `Cell/CellController.cs` | 같은 역할을 함. 주문, OEE, 알람을 빼고 SRS 운전 순서만 남김. 로봇1 폐기 요청(`InspectRejectSequence`) 호출을 추가함 |
 | `ControlPanel` | adapt | `CellOperatorUI` | `Cell/CellOperatorUI.cs` | 시작·정지·리셋과 불량 확률 입력만 씀. 주문 목록은 뺌 |
-| `PartSpawner` | adapt | `ProductionOrder.SupplyPart`, `AssemblySequence.SpawnPart` / `SpawnBase` | `Cell/ProductionOrder.cs`, `Sequence/AssemblySequence.cs` | 생성 방식은 가져오고, 보충 규칙은 SRS 기준으로 바꿈. 공정 위 부품 수(`OnLineCount`)를 두고 이탈 이벤트로 갱신함 |
+| `PartSpawner` | adapt | `ProductionOrder.SupplyPart`, `AssemblySequence.SpawnPart` | `Cell/ProductionOrder.cs`, `Sequence/AssemblySequence.cs` | 생성 방식은 가져오고, 보충 규칙은 SRS 기준으로 바꿈. 공정 위 부품 수(`OnLineCount`)를 두고 이탈 이벤트로 갱신함 |
 | `ConveyorLine` | adapt | `ConveyorLine` | `Cell/ConveyorLine.cs` | 이송, 스토퍼, 푸셔는 그대로 씀. 출하·불량 이동 시 이탈 이벤트를 발행하도록 추가함 |
 | `RejectTote` | reuse | `NgTote` | `Cell/NgTote.cs` | 불량 적재 역할이 같음. 이름만 바꿈 |
-| `PartInfo` | adapt | `PartInfo` | `Cell/PartInfo.cs` | 불량 여부와 각도 오차 필드를 추가함 |
-| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | 부품2(로봇모듈)가 베이스. 클로가 붙는 구멍을 씀. 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함 |
-| `PartKind` (열거형) | adapt | `PartType` (Cube, Prism) | `Cell/PartInfo.cs` | 값을 Claw, RobotModule로 바꿈 |
+| `PartInfo` | adapt | `PartInfo` | `Cell/PartInfo.cs` | `PartBase`를 상속. 원본 `halfHeight`, `symmetryDeg`, `gripOffset`을 유지하고 각도 오차 필드(`assemblyAngleError`)를 추가함 |
+| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | `PartBase`를 상속. 부품2(로봇모듈)가 베이스. 원본 `floorHeight`, `topHeight`를 유지하고, 클로가 붙는 구멍 정보(`holeType`)와 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함 |
+| `PartBase` | new | 없음 | — | `PartInfo`와 `BaseInfo`의 공통 부모. `id`, `defectType`, `Kind`를 가지며, `Kind`는 자식이 고정함 |
+| `PartKind` (열거형) | adapt | `PartType` (이름과 구조만 가져옴) | `Cell/PartInfo.cs` | 값은 원본 Cube, Prism 대신 역할인 Claw(부품1, `moto_part/claw.prefab`), RobotModule(부품2, `moto_bot 1/moto_base.prefab`)으로 바꿈. 모양 enum은 만들지 않음 |
 | `DefectType` (열거형) | adapt | `DefectType` (Offset, WrongPart, Missing) | `Sequence/AssemblySequence.cs` | 값을 SRS 용어(일부 부품 상실, 결합 틀어짐)로 바꿈 |
 | `AssemblySequence` | adapt | `AssemblySequence` | `Sequence/AssemblySequence.cs` | 원본은 수직 조립. SRS는 수평 조립이라 `socket` 기준으로 삽입하도록 바꿈. 폐기 시 이벤트를 발행함 |
 | `ArmIK` | reuse | `ArmIK` | `Robot/ArmIK.cs` | 로봇 팔 역기구학을 그대로 씀 |
@@ -401,8 +428,9 @@ style ExitReason fill:#d3e3f7,stroke:#2f5d9e
 | `AngleErrorInjector` | new | 없음 | — | 조립 후 결합 각도 오차 생성 |
 | `InspectEvent`, `InspectEventBus` | new | 없음 | — | 검사 결과와 이탈 이벤트를 다른 클래스에 전달 |
 | `PartExitEvent` | new | 없음 | — | 부품이 공정을 떠날 때(출하, 불량 이동, 폐기) 발생하는 이벤트 |
-| `StatsTracker`, `AlarmMonitor`, `RobotStatusTracker`, `Dashboard` | new | 없음 | — | 통계(출하·불량·폐기 개수), 이상 알림, 로봇 상태, 화면 표시 |
-| `InspectResult`, `StationId`, `RobotState`, `ExitReason` (열거형) | new | 없음 | — | 새로 정의한 열거형 |
+| `ProcessCounters` | new | 없음 | — | 처리 개수 증가의 진입점. 다른 팀원이 `ProcessCounters.Add(CounterType)`으로 한 줄씩 올림 |
+| `StatsTracker`, `AlarmMonitor`, `RobotStatusTracker`, `Dashboard` | new | 없음 | — | 처리 개수 집계(`CounterType`), 최종 양품률·스테이션 불량률, 이상 알림, 로봇 상태, 화면 표시 |
+| `InspectResult`, `StationId`, `RobotState`, `ExitReason`, `CounterType` (열거형) | new | 없음 | — | 새로 정의한 열거형 |
 
 ### 원본에 있지만 쓰지 않는 것
 
@@ -418,7 +446,7 @@ style ExitReason fill:#d3e3f7,stroke:#2f5d9e
 
 - reuse: 3개 (`RejectTote`, `ArmIK`, `FingerContact`)
 - adapt: 10개 (`ProcessController`, `ControlPanel`, `PartSpawner`, `ConveyorLine`, `PartInfo`, `BaseInfo`, `PartKind`, `DefectType`, `AssemblySequence`, `GripperController`)
-- new: 15개 (`InspectRejectSequence`, `InspectStation`, `FinishedProductInspector`, `AngleErrorInjector`, `InspectEvent`, `PartExitEvent`, `InspectEventBus`, `StatsTracker`, `AlarmMonitor`, `RobotStatusTracker`, `Dashboard`, `InspectResult`, `StationId`, `RobotState`, `ExitReason`)
+- new: 18개 (`InspectRejectSequence`, `InspectStation`, `FinishedProductInspector`, `AngleErrorInjector`, `InspectEvent`, `PartExitEvent`, `InspectEventBus`, `StatsTracker`, `AlarmMonitor`, `RobotStatusTracker`, `Dashboard`, `InspectResult`, `StationId`, `RobotState`, `ExitReason`, `PartBase`, `CounterType`, `ProcessCounters`)
 
 ### 변경 사유
 
