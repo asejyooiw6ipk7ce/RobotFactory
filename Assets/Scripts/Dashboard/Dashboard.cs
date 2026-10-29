@@ -48,7 +48,7 @@ public class Dashboard : MonoBehaviour
     private void OnEnable()
     {
         if (document == null) return;
-        InspectEventBus.InspectionCompleted += OnInspectionCompleted;
+        InspectEventBus.Published += OnPublished;
         InspectEventBus.CounterAdded += OnCounterAdded;
         InspectEventBus.RobotStateChanged += OnRobotStateChanged;
         Refresh();
@@ -56,7 +56,7 @@ public class Dashboard : MonoBehaviour
 
     private void OnDisable()
     {
-        InspectEventBus.InspectionCompleted -= OnInspectionCompleted;
+        InspectEventBus.Published -= OnPublished;
         InspectEventBus.CounterAdded -= OnCounterAdded;
         InspectEventBus.RobotStateChanged -= OnRobotStateChanged;
     }
@@ -97,10 +97,10 @@ public class Dashboard : MonoBehaviour
         stationCards[station] = root.Q<VisualElement>($"{prefix}-card");
     }
 
-    private void OnInspectionCompleted(InspectEvent e)
+    private void OnPublished(InspectEvent e)
     {
         stats.Record(e);
-        alarms.Evaluate(e.StationId);
+        alarms.Evaluate(e.stationId);
         Refresh();
     }
 

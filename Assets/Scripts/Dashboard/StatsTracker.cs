@@ -46,20 +46,20 @@ public class StatsTracker
 
     public void Record(InspectEvent e)
     {
-        bool fail = e.Result == InspectResult.Fail;
+        bool fail = e.result == InspectResult.Fail;
 
-        Increase(inspected, e.StationId);
-        if (fail) Increase(defects, e.StationId);
+        Increase(inspected, e.stationId);
+        if (fail) Increase(defects, e.stationId);
 
-        if (!recent.TryGetValue(e.StationId, out var queue))
+        if (!recent.TryGetValue(e.stationId, out var queue))
         {
             queue = new Queue<bool>();
-            recent[e.StationId] = queue;
+            recent[e.stationId] = queue;
         }
         queue.Enqueue(fail);
         while (queue.Count > recentCount) queue.Dequeue();
 
-        if (e.StationId == StationId.Station3)
+        if (e.stationId == StationId.Station3)
         {
             finalInspected++;
             if (!fail) finalPassed++;

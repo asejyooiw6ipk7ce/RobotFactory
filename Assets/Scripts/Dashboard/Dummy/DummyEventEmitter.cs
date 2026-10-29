@@ -45,7 +45,7 @@ public class DummyEventEmitter : MonoBehaviour
             ? (station == StationId.Station3 ? DefectType.AngleError : DefectType.PartLoss)
             : DefectType.None;
 
-        InspectEventBus.PublishInspection(
+        InspectEventBus.Publish(
             new InspectEvent($"DUMMY-{serial:0000}", station, result, defect, Time.time));
 
         // 처리 개수: 흐름에 맞춰 함께 증가
