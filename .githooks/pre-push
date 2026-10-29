@@ -1,17 +1,13 @@
 #!/bin/sh
-# 푸시하는 커밋 모두 커밋 메시지 규칙을 따라야 한다. 병합 커밋은 검사하지 않는다.
+# 원격 어디에도 없는 새 커밋만 검사한다. 병합 커밋은 검사하지 않는다.
+# (develop 등 이미 원격에 있는 커밋은 검사 대상이 아니다)
 zero=0000000000000000000000000000000000000000
 pattern='^(feat|fix|docs|test|refactor|chore)(\([^)]+\))? *: .+'
 bad=0
 
 while read local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
-  if [ "$remote_sha" = "$zero" ]; then
-    range="$local_sha --not --remotes"
-  else
-    range="$remote_sha..$local_sha"
-  fi
-  for c in $(git rev-list --no-merges $range); do
+  for c in $(git rev-list --no-merges "$local_sha" --not --remotes); do
     subject=$(git log -1 --format=%s "$c")
     if ! echo "$subject" | grep -Eq "$pattern"; then
       echo "푸시 거부: 커밋 메시지 규칙 위반 ($c)" >&2
