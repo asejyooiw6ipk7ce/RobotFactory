@@ -121,7 +121,7 @@ namespace PartSupply {
         <<adapt>>
         +float floorHeight
         +float topHeight
-        +Vector3 HoleCenter
+        +Vector3 holeCenter
         +Transform socket
         +bool Accepts(PartBase part)
     }
@@ -224,6 +224,7 @@ namespace EventsDashboard {
         <<new>>
         +string partId
         +ExitReason reason
+        +DefectType defectType
         +float timestamp
     }
     class StatsTracker {
@@ -323,6 +324,7 @@ InspectEventBus ..> PartSpawner : 이탈 이벤트 구독
 StatsTracker ..> InspectEvent : Record 인자
 ProcessCounters ..> InspectEventBus : 개수 이벤트 발행
 PartExitEvent --> ExitReason
+PartExitEvent --> DefectType
 Dashboard --> StatsTracker : 수치 읽기
 Dashboard --> AlarmMonitor : 알림 읽기
 Dashboard --> RobotStatusTracker : 로봇 상태 읽기
@@ -342,9 +344,9 @@ ProcessCounters ..> CounterType : 인자
 %% ===== TODO 표시 =====
 note for InspectStation "TODO: 검사 자세로 가는 방식(로봇1 IK 사용 여부)은 SRS에 없음"
 note for InspectRejectSequence "TODO: 폐기 위치(폐기 빈 vs 불량 토트) SRS에 없음. 로봇1 그리퍼를 로봇2와 별도 인스턴스로 둘지 미정"
-note for InspectEvent "TODO: class인지 struct인지 미정"
+note for InspectEvent "구현: readonly struct (값 타입, 생성자로 값 설정)"
 note for PartExitEvent "TODO: 출하 이벤트를 ConveyorLine에서 발행하는 것이 맞는지 확정 필요"
-note for InspectEventBus "TODO: static event 구현 방식 미정 (Unity 씬에서 쓸지 여부 포함)"
+note for InspectEventBus "구현: static class, static event (구독은 +=, 발행은 Publish 메서드로만)"
 note for InspectEventBus "TODO: 구독자 목록 관리 방식 미정. 지금은 의존으로 표시"
 note for InspectEventBus "TODO: 검사 외 이벤트(출하·폐기)도 담게 되어 버스 이름 재검토 필요"
 note for InspectEventBus "CounterAdded(CounterType), RobotStateChanged(int 로봇번호, RobotState)"
@@ -413,7 +415,7 @@ style ProcessCounters fill:#d3e3f7,stroke:#2f5d9e
 | `ConveyorLine` | adapt | `ConveyorLine` | `Cell/ConveyorLine.cs` | 이송, 스토퍼, 푸셔는 그대로 씀. 출하·불량 이동 시 이탈 이벤트를 발행하도록 추가함 |
 | `RejectTote` | reuse | `NgTote` | `Cell/NgTote.cs` | 불량 적재 역할이 같음. 이름만 바꿈 |
 | `PartInfo` | adapt | `PartInfo` | `Cell/PartInfo.cs` | `PartBase`를 상속. 원본 `halfHeight`, `symmetryDeg`, `gripOffset`을 유지하고 각도 오차 필드(`assemblyAngleError`)를 추가함 |
-| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | `PartBase`를 상속. 부품2(로봇모듈)가 베이스. 원본 `floorHeight`, `topHeight`를 유지하고, 구멍 중심(`HoleCenter`)과 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함. 맞는 부품은 `Accepts`로 확인하므로 `holeType`은 두지 않음 |
+| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | `PartBase`를 상속. 부품2(로봇모듈)가 베이스. 원본 `floorHeight`, `topHeight`를 유지하고, 구멍 중심(`holeCenter`)과 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함. 맞는 부품은 `Accepts`로 확인하므로 `holeType`은 두지 않음 |
 | `PartBase` | new | 없음 | — | `PartInfo`와 `BaseInfo`의 공통 부모. `id`, `defectType`, `Kind`를 가지며, `Kind`는 자식이 고정함 |
 | `PartKind` (열거형) | adapt | `PartType` (이름과 구조만 가져옴) | `Cell/PartInfo.cs` | 값은 원본 Cube, Prism 대신 역할인 Claw(부품1, `moto_part/claw.prefab`), RobotModule(부품2, `moto_bot 1/moto_base.prefab`)으로 바꿈. 모양 enum은 만들지 않음 |
 | `DefectType` (열거형) | adapt | `DefectType` (Offset, WrongPart, Missing) | `Sequence/AssemblySequence.cs` | 값을 SRS 용어(일부 부품 상실, 결합 틀어짐)로 바꿈 |
