@@ -9,7 +9,7 @@ public class StatsTrackerTests
     [Test]
     public void NoInspection_ReturnsNull()
     {
-        var stats = new StatsTracker(10);
+        var stats = new StatusTracker(10);
 
         Assert.IsNull(stats.FinalYieldRate);
         Assert.IsNull(stats.StationDefectRate(StationId.Station1));
@@ -18,7 +18,7 @@ public class StatsTrackerTests
     [Test]
     public void FinalYield_UsesStation3Only()
     {
-        var stats = new StatsTracker(10);
+        var stats = new StatusTracker(10);
 
         // 완제품 20개: 양품 14, 불량 6
         for (int i = 0; i < 14; i++) stats.Record(Make(StationId.Station3, false));
@@ -32,7 +32,7 @@ public class StatsTrackerTests
     [Test]
     public void StationDefectRate_CountsOnlyThatStation()
     {
-        var stats = new StatsTracker(10);
+        var stats = new StatusTracker(10);
 
         for (int i = 0; i < 9; i++) stats.Record(Make(StationId.Station1, false));
         stats.Record(Make(StationId.Station1, true));
@@ -45,7 +45,7 @@ public class StatsTrackerTests
     [Test]
     public void Counters_IncrementPerType()
     {
-        var stats = new StatsTracker(10);
+        var stats = new StatusTracker(10);
 
         stats.Increment(CounterType.Input);
         stats.Increment(CounterType.Input);
@@ -59,7 +59,7 @@ public class StatsTrackerTests
     [Test]
     public void RecentWindow_KeepsOnlyLatestResults()
     {
-        var stats = new StatsTracker(10);
+        var stats = new StatusTracker(10);
 
         for (int i = 0; i < 10; i++) stats.Record(Make(StationId.Station2, true));
         for (int i = 0; i < 10; i++) stats.Record(Make(StationId.Station2, false));

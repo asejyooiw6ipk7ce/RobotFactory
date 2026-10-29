@@ -4,12 +4,12 @@ using System.Collections.Generic;
 /// 알림은 스테이션당 하나이며, 이미 떠 있으면 값만 갱신한다. 공정은 멈추지 않는다.
 public class AlarmMonitor
 {
-    private readonly StatsTracker stats;
+    private readonly StatusTracker stats;
     private readonly float thresholdPercent;
     private readonly int minInspections;
     private readonly Dictionary<StationId, double> active = new Dictionary<StationId, double>();
 
-    public AlarmMonitor(StatsTracker stats, float thresholdPercent, int minInspections)
+    public AlarmMonitor(StatusTracker stats, float thresholdPercent, int minInspections)
     {
         this.stats = stats;
         this.thresholdPercent = thresholdPercent;
