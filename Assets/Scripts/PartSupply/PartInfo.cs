@@ -6,4 +6,5 @@ public class PartInfo : PartBase
     public float symmetryDeg;
     public float gripOffset;
     public float assemblyAngleError;
+    public override PartKind Kind => PartKind.Claw;
 }
