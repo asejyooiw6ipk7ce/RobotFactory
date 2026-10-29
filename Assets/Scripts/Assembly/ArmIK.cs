@@ -24,6 +24,8 @@ public class ArmIK : MonoBehaviour
     public bool pointDown = true;
     [Tooltip("pointDown이 꺼졌을 때 그리퍼 끝이 바라볼 목표 방향 (기본: Vector3.forward = 수평 전방 정렬)")]
     public Vector3 targetLookDir = Vector3.forward;
+    [Tooltip("pointDown이 꺼졌을 때 tip이 targetLookDir 방향을 수평으로 향하도록 정밀 제어 (기본 false: 기존 동작 100% 보존)")]
+    public bool useTargetLookDir = false;
     [Tooltip("자세 오차 1 rad를 위치 오차 몇 m로 볼지")]
     public float orientationWeight = 0.2f;
 
@@ -353,7 +355,15 @@ public class ArmIK : MonoBehaviour
         float[] current = CurrentTargets();          // 지금 관절 각도 6개 = 출발 자세
         float[] solution = new float[n];             // 계산 결과를 담을 빈 칸 = 도착 자세
 
-        LastSolveOk = Solve(goal, activeYaw, current, solution);
+        if (!pointDown && useTargetLookDir)
+        {
+            // 수평 조립 정렬 시 장거리 스윙에서도 팔꿈치 위(Elbow-Up) 자세를 유지하도록 원호 시드 연속 풀이 적용
+            LastSolveOk = SolveArcContinuation(goal, activeYaw, current, solution);
+        }
+        else
+        {
+            LastSolveOk = Solve(goal, activeYaw, current, solution);
+        }
         if (!LastSolveOk) Debug.LogWarning($"[ArmIK] {goal} (손목 {yawDeg}도) 에 정확히 닿는 자세가 없습니다. 가장 가까운 자세로 이동합니다.");
 
         yield return Drive(solution, MoveTime(current, solution), true);   // 이동 시간 = 가장 많이 도는 관절 기준
@@ -437,6 +447,84 @@ public class ArmIK : MonoBehaviour
         yield return Correct(goal);
 
         // 14. 이동 종료 표시
+        IsMoving = false;
+    }
+
+    // =========================================================================
+    // [MoveLinearSmooth] 장거리 수평 정렬 직선 이동 (회전 각도에 맞춰 팔을 실시간으로 굽히며 직선 주행)
+    //  - 베이스(shoulder_link)가 회전하는 동안 손끝이 곡선(호)으로 튀어나가지 않도록,
+    //    1cm 간격 직선 경유점마다 어깨·팔꿈치·손목 굽힘 각도를 연속 계산하고
+    //    단일 물리 루프에서 부드러운 가감속(SmoothStep)으로 정밀 보간 주행합니다.
+    // =========================================================================
+    public IEnumerator MoveLinearSmooth(Vector3 goal, float speed, float? yawDeg = null)
+    {
+        IsMoving = true;
+        activeYaw = yawDeg;
+
+        float[] startAngles = CurrentTargets();
+        Forward(startAngles, out Vector3 startPos, out _, out _, null, null);
+
+        float distance = Vector3.Distance(startPos, goal);
+        if (distance > 0.0005f)
+        {
+            int pointCount = Mathf.Max(1, Mathf.CeilToInt(distance / linearStep));
+            List<float[]> pathAngles = new List<float[]>(pointCount + 1);
+            pathAngles.Add(startAngles);
+
+            float[] prevAngles = startAngles;
+            float[] jointTravel = new float[n];
+            bool allOk = true;
+
+            for (int i = 1; i <= pointCount; i++)
+            {
+                Vector3 point = Vector3.Lerp(startPos, goal, (float)i / pointCount);
+                float[] pointAngles = new float[n];
+                allOk &= Solve(point, activeYaw, prevAngles, pointAngles);
+
+                for (int j = 0; j < n; j++)
+                {
+                    jointTravel[j] += Mathf.Abs(pointAngles[j] - prevAngles[j]);
+                }
+
+                pathAngles.Add(pointAngles);
+                prevAngles = pointAngles;
+            }
+
+            LastSolveOk = allOk;
+            if (!allOk) Debug.LogWarning($"[ArmIK] 직선 스무스 경로 일부가 닿을 수 없는 범위입니다. (목표 {goal}, 손목 {yawDeg}도)");
+
+            float maxTravelDeg = 0f;
+            for (int j = 0; j < n; j++) maxTravelDeg = Mathf.Max(maxTravelDeg, jointTravel[j]);
+
+            // 직선 목표 속도와 관절 모터 최대 회전 속도(SmoothStep 피크 1.5배 반영)를 모두 만족하는 주행 시간
+            float duration = Mathf.Max(
+                minMoveTime,
+                Mathf.Max(distance / Mathf.Max(speed, 0.001f), (maxTravelDeg * 1.5f) / Mathf.Max(jointSpeed, 1f))
+            );
+
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.fixedDeltaTime / duration;
+                float s = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t));
+                float exactIdx = s * pointCount;
+                int idx0 = Mathf.Min(Mathf.FloorToInt(exactIdx), pointCount - 1);
+                float frac = exactIdx - idx0;
+
+                float[] a0 = pathAngles[idx0];
+                float[] a1 = pathAngles[idx0 + 1];
+                for (int j = 0; j < n; j++)
+                {
+                    SetTarget(j, Mathf.Lerp(a0[j], a1[j], frac));
+                }
+
+                yield return new WaitForFixedUpdate();
+            }
+        }
+
+        yield return Settle();
+        yield return Correct(goal);
+
         IsMoving = false;
     }
 
@@ -526,6 +614,76 @@ public class ArmIK : MonoBehaviour
     }
 
     // =========================================================================
+    // [HorizontalRollError] 수평 지향(desiredLook) 상태에서 그리퍼 축 둘레의 손목 Roll 오차 계산
+    //  - rollDeg = 0도일 때 손가락 닫힘 축(closeAxis)이 수직(Vector3.up)에 정렬되어 파지된 부품이 반듯하게 유지됩니다.
+    //  - 그리퍼가 수직 아래에서 수평으로 회전하는 과도기에도 특이점 없이 연속적으로 추적합니다.
+    // =========================================================================
+    static float HorizontalRollError(Vector3 tipDir, Vector3 closeAxis, Vector3 desiredLook, float rollDeg, out float errorDeg)
+    {
+        Vector3 baseRollGoal = Quaternion.AngleAxis(rollDeg, desiredLook) * Vector3.up;
+        Vector3 transportedGoal = Quaternion.FromToRotation(desiredLook, tipDir) * baseRollGoal;
+
+        Vector3 curRoll = Vector3.ProjectOnPlane(closeAxis, tipDir);
+        Vector3 goalRoll = Vector3.ProjectOnPlane(transportedGoal, tipDir);
+        if (curRoll.sqrMagnitude < 1e-6f || goalRoll.sqrMagnitude < 1e-6f)
+        {
+            errorDeg = 0f;
+            return 0f;
+        }
+        curRoll.Normalize();
+        goalRoll.Normalize();
+
+        // 2지 그리퍼 180도 대칭성 (현재 자세에서 가까운 쪽을 유지하여 부품 뒤집힘 방지)
+        if (Vector3.Dot(curRoll, goalRoll) < 0f) goalRoll = -goalRoll;
+
+        errorDeg = Vector3.Angle(curRoll, goalRoll);
+        float sinErr = Mathf.Clamp(Vector3.Dot(Vector3.Cross(curRoll, goalRoll), tipDir), -1f, 1f);
+        return Mathf.Asin(sinErr);
+    }
+
+    // =========================================================================
+    // [SolveArcContinuation] 수평 정렬 상태에서 큰 각도로 베이스(shoulder_link)를 스윙할 때
+    //  - 베이스 중심을 관통하는 직선 점프로 인해 팔꿈치/손목이 뒤집히는 국소해를 방지하기 위해,
+    //    원통좌표 원호(Arc) 경유점들을 따라 시드(Seed)를 연속 전달하여 정자세(Elbow-Up) 해를 도출합니다.
+    // =========================================================================
+    bool SolveArcContinuation(Vector3 goal, float? yaw, float[] startAngles, float[] result)
+    {
+        Forward(startAngles, out Vector3 startPos, out _, out _, null, null);
+        float dist = Vector3.Distance(startPos, goal);
+        Vector3 pivot0 = baseT.position + baseT.rotation * pivotInParent[0];
+        Vector3 hStart = new Vector3(startPos.x - pivot0.x, 0f, startPos.z - pivot0.z);
+        Vector3 hGoal = new Vector3(goal.x - pivot0.x, 0f, goal.z - pivot0.z);
+
+        if (dist > 0.25f && hStart.magnitude > 0.1f && hGoal.magnitude > 0.1f)
+        {
+            float angStart = Mathf.Atan2(hStart.x, hStart.z) * Mathf.Rad2Deg;
+            float angGoal = Mathf.Atan2(hGoal.x, hGoal.z) * Mathf.Rad2Deg;
+            float deltaDeg = Mathf.DeltaAngle(angStart, angGoal);
+            int steps = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(Mathf.Abs(deltaDeg) / 20f, dist / 0.20f)), 2, 12);
+
+            float rStart = hStart.magnitude;
+            float rGoal = hGoal.magnitude;
+            float[] seed = (float[])startAngles.Clone();
+            float[] next = new float[n];
+
+            for (int s = 1; s < steps; s++)
+            {
+                float t = (float)s / steps;
+                float angRad = (angStart + deltaDeg * t) * Mathf.Deg2Rad;
+                float r = Mathf.Lerp(rStart, rGoal, t);
+                float y = Mathf.Lerp(startPos.y, goal.y, t);
+                Vector3 arcPoint = new Vector3(pivot0.x + Mathf.Sin(angRad) * r, y, pivot0.z + Mathf.Cos(angRad) * r);
+                Solve(arcPoint, yaw, seed, next);
+                System.Array.Copy(next, seed, n);
+            }
+
+            return Solve(goal, yaw, seed, result);
+        }
+
+        return Solve(goal, yaw, startAngles, result);
+    }
+
+    // =========================================================================
     // [Solve] 역기구학 (Inverse Kinematics, IK) - 자코비안 수치 반복법
     //  - 목표 위치(goal)와 손목 각도(yaw)가 주어졌을 때, 손끝이 그 위치에 닿도록
     //    6개 관절 각도를 "오차를 줄여가며 조금씩 비틀어 맞추는" 최적화 알고리즘입니다.
@@ -542,10 +700,15 @@ public class ArmIK : MonoBehaviour
         // 2. 제어할 오차의 종류와 개수(errorCount) 결정
         //    - 기본: 3D 위치 오차 (X, Y, Z) = 3개
         //    - pointDown이 켜져 있으면: 수직 아래(down)를 보기 위한 기울기 오차 = 2개 추가
-        //    - pointDown이 꺼져 있으면: 지면과 나란한 '수평(Horizontal, tipDir.y = 0)'을 유지하기 위한 오차 = 1개 추가
-        //    - yaw 각도가 지정되어 있으면: 손목 회전(Yaw) 오차 = 1개 추가
+        //    - pointDown이 꺼져 있고 useTargetLookDir이면: 3D 목표 지향(desiredLook) 회전 오차 = 2개 추가
+        //    - pointDown이 꺼져 있고 일반 모드이면: 지면과 나란한 '수평(Horizontal, tipDir.y = 0)' 오차 = 1개 추가
+        //    - yaw 각도가 지정되어 있으면: 손목 회전(Yaw / Roll) 오차 = 1개 추가
+        bool useLook = !pointDown && useTargetLookDir && targetLookDir.sqrMagnitude > 0.001f;
+        Vector3 desiredLook = useLook ? Vector3.ProjectOnPlane(targetLookDir, Vector3.up).normalized : Vector3.zero;
+        if (useLook && desiredLook.sqrMagnitude < 0.001f) useLook = false;
+
         bool useYaw = yaw.HasValue;
-        int errorCount = 3 + (pointDown ? 2 : 1) + (useYaw ? 1 : 0);
+        int errorCount = 3 + (pointDown ? 2 : (useLook ? 2 : 1)) + (useYaw ? 1 : 0);
 
         // 회전 오차(각도)를 위치 오차(m)와 밸런스를 맞추기 위한 가중치
         float rotWeight = orientationWeight;
@@ -566,13 +729,43 @@ public class ArmIK : MonoBehaviour
             // 4-2. 목표와의 오차 계산
             Vector3 posError = goal - tipPos;                                                                 // 위치 오차 (m)
             Vector3 dirError = pointDown ? Vector3.Cross(tipDir, Vector3.down) : Vector3.zero;                // 수직 지향 오차
-            float horizError = !pointDown ? -tipDir.y : 0f;                                                   // 수평 지향 오차 (tipDir.y -> 0)
-            Vector3 yawError = useYaw ? YawErrorVector(closeAxis, yaw.Value, out yawErrorDeg) : Vector3.zero;  // 손목 회전 오차
+            float horizError = (!pointDown && !useLook) ? -tipDir.y : 0f;                                     // 단순 수평 지향 오차 (tipDir.y -> 0)
+
+            // 수평 목표 방향(desiredLook) 지향: 특이점(Gimbal Lock) 및 손목 스핀 축 간섭이 없는 접평면 정규직교 기저 회전 오차
+            float lookAngleDeg = 0f;
+            Vector3 lookRotErr = Vector3.zero;
+            Vector3 lookB1 = Vector3.zero;
+            Vector3 lookB2 = Vector3.zero;
+            if (useLook)
+            {
+                lookAngleDeg = Vector3.Angle(tipDir, desiredLook);
+                float lookAngleRad = lookAngleDeg * Mathf.Deg2Rad;
+                Vector3 lookCross = Vector3.Cross(tipDir, desiredLook);
+                float lookCrossMag = lookCross.magnitude;
+                if (lookCrossMag > 1e-5f)
+                    lookRotErr = (lookCross / lookCrossMag) * lookAngleRad;
+                else if (Vector3.Dot(tipDir, desiredLook) < 0f)
+                    lookRotErr = Vector3.up * Mathf.PI;
+
+                Vector3 refUp = Mathf.Abs(tipDir.y) < 0.9f ? Vector3.up : Vector3.forward;
+                lookB1 = Vector3.Cross(tipDir, refUp).normalized;
+                lookB2 = Vector3.Cross(tipDir, lookB1).normalized;
+            }
+
+            Vector3 yawError = Vector3.zero;
+            float rollErrorRad = 0f;
+            if (useYaw)
+            {
+                if (useLook)
+                    rollErrorRad = HorizontalRollError(tipDir, closeAxis, desiredLook, yaw.Value, out yawErrorDeg);
+                else
+                    yawError = YawErrorVector(closeAxis, yaw.Value, out yawErrorDeg);
+            }
 
             // 4-3. [수렴 판정 / 조기 탈출]: 오차가 충분히 작으면 이미 정답을 찾았으므로 즉시 루프 종료!
             if (posError.magnitude < 0.0005f &&
                 (!pointDown || Vector3.Angle(tipDir, Vector3.down) < 0.5f) &&
-                (pointDown || Mathf.Abs(tipDir.y) < 0.01f) &&
+                (pointDown || (useLook ? lookAngleDeg < 0.5f : Mathf.Abs(tipDir.y) < 0.01f)) &&
                 (!useYaw || yawErrorDeg < 0.5f)) break;
 
             // 4-4. 오차 벡터에 값 채우기
@@ -582,15 +775,20 @@ public class ArmIK : MonoBehaviour
                 errors[3] = rotWeight * dirError.x;
                 errors[4] = rotWeight * dirError.z;
             }
+            else if (useLook)
+            {
+                errors[3] = rotWeight * Vector3.Dot(lookRotErr, lookB1);
+                errors[4] = rotWeight * Vector3.Dot(lookRotErr, lookB2);
+            }
             else
             {
-                // 완벽한 수평 지향 (tipDir.y = 0)
+                // 단순 수평 지향 (tipDir.y = 0)
                 errors[3] = rotWeight * horizError;
             }
             if (useYaw)
             {
-                int yawIdx = pointDown ? 5 : 4;
-                errors[yawIdx] = rotWeight * yawError.y;
+                int yawIdx = pointDown ? 5 : (useLook ? 5 : 4);
+                errors[yawIdx] = rotWeight * (useLook ? rollErrorRad : yawError.y);
             }
 
             // 4-5. [자코비안(Jacobian) 행렬 구성]:
@@ -607,6 +805,11 @@ public class ArmIK : MonoBehaviour
                     jacobian[3, j] = rotWeight * jointAxes[j].x;
                     jacobian[4, j] = rotWeight * jointAxes[j].z;
                 }
+                else if (useLook)
+                {
+                    jacobian[3, j] = rotWeight * Vector3.Dot(jointAxes[j], lookB1);
+                    jacobian[4, j] = rotWeight * Vector3.Dot(jointAxes[j], lookB2);
+                }
                 else
                 {
                     // 관절 j가 회전할 때 tipDir.y의 변화율 = (jointAxes[j] x tipDir).y
@@ -615,8 +818,8 @@ public class ArmIK : MonoBehaviour
                 }
                 if (useYaw)
                 {
-                    int yawIdx = pointDown ? 5 : 4;
-                    jacobian[yawIdx, j] = rotWeight * jointAxes[j].y;
+                    int yawIdx = pointDown ? 5 : (useLook ? 5 : 4);
+                    jacobian[yawIdx, j] = rotWeight * (useLook ? Vector3.Dot(jointAxes[j], tipDir) : jointAxes[j].y);
                 }
             }
 
@@ -656,11 +859,19 @@ public class ArmIK : MonoBehaviour
         // 6. 계산된 최종 각도로 서 있을 때 목표에 충분히 가까운지 검증하여 성공 여부(true/false) 반환
         Forward(angles, out Vector3 finalPos, out Vector3 finalDir, out Vector3 finalClose, null, null);
         float finalYawDeg = 0f;
-        if (useYaw) YawErrorVector(finalClose, yaw.Value, out finalYawDeg);
+        if (useYaw)
+        {
+            if (useLook)
+                HorizontalRollError(finalDir, finalClose, desiredLook, yaw.Value, out finalYawDeg);
+            else
+                YawErrorVector(finalClose, yaw.Value, out finalYawDeg);
+        }
 
-        // 위치 오차 3mm 미만, 수직/수평 각도 오차 3도 미만이면 IK 성공(true)으로 판정
+        // 위치 오차 3mm 미만, 수직/수평 각도 오차 이내이면 IK 성공(true)으로 판정
         bool posOk = (goal - finalPos).magnitude < 0.003f;
-        bool orientOk = pointDown ? (Vector3.Angle(finalDir, Vector3.down) < 3f) : (Mathf.Abs(finalDir.y) < 0.08f);
+        bool orientOk = pointDown
+            ? (Vector3.Angle(finalDir, Vector3.down) < 3f)
+            : (useLook ? (Vector3.Angle(finalDir, desiredLook) < 5f) : (Mathf.Abs(finalDir.y) < 0.08f));
         bool yawOk = !useYaw || finalYawDeg < 3f;
         return posOk && orientOk && yawOk;
     }
@@ -863,13 +1074,24 @@ public class ArmIK : MonoBehaviour
         }
 
         // 최종 이동 완료 후 실제 오차값들을 측정하여 인스펙터/GUI 표시용 변수에 저장
+        Vector3 actualDir = ActualDir();
+        bool useLookNow = !pointDown && useTargetLookDir && targetLookDir.sqrMagnitude > 0.001f;
+        Vector3 desiredLookNow = useLookNow ? Vector3.ProjectOnPlane(targetLookDir, Vector3.up).normalized : Vector3.down;
+        if (useLookNow && desiredLookNow.sqrMagnitude < 0.001f) useLookNow = false;
+
         PositionError = (goal - tip.position).magnitude;          // 최종 위치 오차 (단위: m)
-        AngleError = Vector3.Angle(ActualDir(), Vector3.down);     // 수직 아래 방향 대비 각도 오차 (단위: 도)
+        AngleError = pointDown
+            ? Vector3.Angle(actualDir, Vector3.down)
+            : (useLookNow ? Vector3.Angle(actualDir, desiredLookNow) : Mathf.Abs(90f - Vector3.Angle(actualDir, Vector3.up)));
         YawError = 0f;
         if (activeYaw.HasValue)
         {
-            YawErrorVector(ActualCloseAxis(), activeYaw.Value, out float yawErrorDeg);
-            YawError = yawErrorDeg;                               // 손목 회전(Yaw) 각도 오차 (단위: 도)
+            float yawErrorDeg;
+            if (useLookNow)
+                HorizontalRollError(actualDir, ActualCloseAxis(), desiredLookNow, activeYaw.Value, out yawErrorDeg);
+            else
+                YawErrorVector(ActualCloseAxis(), activeYaw.Value, out yawErrorDeg);
+            YawError = yawErrorDeg;                               // 손목 회전(Yaw / Roll) 각도 오차 (단위: 도)
         }
     }
 
