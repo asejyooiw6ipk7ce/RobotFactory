@@ -105,3 +105,50 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Visual Studio 2022+ Solution File
+*.slnx
+
+# Visual Studio Code
+.vscode/
+
+# JetBrains Rider / IntelliJ
+.idea/
+*.DotSettings
+
+# Unity Collab / Plastic SCM temporary files
+.collabprovider/
+plastic.workspace
+
+# OS generated files
+[Dd]esktop.ini
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+$RECYCLE.BIN/
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Unity Profiler captures
+/[Pp]rofiler/
+*.prof
+
+# Git merge conflicts & Editor backup files
+*.orig
+*.rej
+*.bak
+*~
+*.swp
+*.swo
+
+# Python / ROS bridge / ML temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
