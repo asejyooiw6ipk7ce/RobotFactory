@@ -18,7 +18,7 @@ public class Dashboard : MonoBehaviour
     [Tooltip("알림 판정을 시작하는 최소 검사 횟수")]
     [SerializeField, Min(1)] private int minInspectionsForAlert = 5;
 
-    private StatsTracker stats;
+    private StatusTracker stats;
     private AlarmMonitor alarms;
     private RobotStatusTracker robots;
 
@@ -32,7 +32,7 @@ public class Dashboard : MonoBehaviour
 
     private void Awake()
     {
-        stats = new StatsTracker(recentCount);
+        stats = new StatusTracker(recentCount);
         alarms = new AlarmMonitor(stats, alertThresholdPercent, minInspectionsForAlert);
         robots = new RobotStatusTracker();
 

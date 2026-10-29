@@ -12,7 +12,7 @@ public class StatusTracker
     private int finalInspected;
     private int finalPassed;
 
-    public StatsTracker(int recentCount)
+    public StatusTracker(int recentCount)
     {
         this.recentCount = recentCount;
     }

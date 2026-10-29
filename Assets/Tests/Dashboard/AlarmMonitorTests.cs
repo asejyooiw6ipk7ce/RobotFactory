@@ -3,13 +3,13 @@ using NUnit.Framework;
 /// TC-16: 이상 알림 판정 검증 (기준 20%, 판정 횟수 10, 최소 검사 5)
 public class AlarmMonitorTests
 {
-    private StatsTracker stats;
+    private StatusTracker stats;
     private AlarmMonitor alarms;
 
     [SetUp]
     public void SetUp()
     {
-        stats = new StatsTracker(10);
+        stats = new StatusTracker(10);
         alarms = new AlarmMonitor(stats, 20f, 5);
     }
 
