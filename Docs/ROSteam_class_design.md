@@ -34,14 +34,14 @@ class RobotState {
     <<enumeration>>
     Idle
     Moving
-    Work
-    Assembly
+    Working
+    Assembling
     Error
 }
 class ExitReason {
     <<enumeration>>
     Shipped
-    DefectConveyor
+    Defective
     Discarded
 }
 class CounterType {
@@ -49,7 +49,7 @@ class CounterType {
     Input
     Inspected
     Discarded
-    DefectConveyor
+    Defective
     Shipped
 }
 
@@ -119,7 +119,6 @@ namespace PartSupply {
     }
     class BaseInfo {
         <<adapt>>
-        +PartKind holeType
         +float floorHeight
         +float topHeight
         +Vector3 HoleCenter
@@ -200,12 +199,14 @@ namespace Assembly {
 namespace EventsDashboard {
     class InspectEventBus {
         <<new>>
-        +Action~InspectEvent~ Published
+        +Action~InspectEvent~ InspectionCompleted
         +Action~PartExitEvent~ PartExited
         +Action~CounterType~ CounterAdded
-        +Action RobotStateChanged
-        +Publish(InspectEvent e)$ void
-        +PublishExit(PartExitEvent e)$ void
+        +Action~int, RobotState~ RobotStateChanged
+        +PublishInspection(InspectEvent e)$ void
+        +PublishPartExit(PartExitEvent e)$ void
+        +PublishCounter(CounterType type)$ void
+        +PublishRobotState(int robotId, RobotState state)$ void
     }
     class ProcessCounters {
         <<new>>
@@ -213,7 +214,7 @@ namespace EventsDashboard {
     }
     class InspectEvent {
         <<new>>
-        +int partId
+        +string partId
         +StationId stationId
         +InspectResult result
         +DefectType defectType
@@ -221,9 +222,8 @@ namespace EventsDashboard {
     }
     class PartExitEvent {
         <<new>>
-        +int partId
+        +string partId
         +ExitReason reason
-        +DefectType defectType
         +float timestamp
     }
     class StatsTracker {
@@ -236,17 +236,18 @@ namespace EventsDashboard {
     }
     class AlarmMonitor {
         <<new>>
-        +int window
-        +int minSamples
-        +float threshold
-        +Record(InspectEvent e) void
-        +IsActive(StationId id) bool
+        -StatsTracker stats
+        -float thresholdPercent
+        -int minInspections
+        +IReadOnlyDictionary~StationId, double~ Active
+        +Evaluate(StationId station) void
     }
     class RobotStatusTracker {
         <<new>>
-        +RobotState robot1
-        +RobotState robot2
-        +Set(int robotId, RobotState state) void
+        -Dictionary~int, RobotState~ states
+        +Set(int robotId, RobotState state)$ void
+        +Apply(int robotId, RobotState state) void
+        +Get(int robotId) RobotState
     }
     class Dashboard {
         <<new>>
@@ -321,9 +322,7 @@ InspectEventBus ..> AlarmMonitor : 이벤트 구독
 InspectEventBus ..> PartSpawner : 이탈 이벤트 구독
 StatsTracker ..> InspectEvent : Record 인자
 ProcessCounters ..> InspectEventBus : 개수 이벤트 발행
-AlarmMonitor ..> InspectEvent : Record 인자
 PartExitEvent --> ExitReason
-PartExitEvent --> DefectType
 Dashboard --> StatsTracker : 수치 읽기
 Dashboard --> AlarmMonitor : 알림 읽기
 Dashboard --> RobotStatusTracker : 로봇 상태 읽기
@@ -353,8 +352,8 @@ note for AssemblySequence "TODO: 패키지의 EvaluateResult (InspectClass 반�
 note for AssemblySequence "TODO: Assemble은 currentBase.socket 위치·접근 방향으로 수평 삽입. 삽입 경로 구현 방식 미정"
 note for Dashboard "TODO: UI 바인딩 방식(TMP 직접 참조 또는 이벤트 구독) 미정"
 note for StatsTracker "구현: 순수 C# 클래스 (MonoBehaviour 아님). 처리 개수는 CounterType 사전으로 셈"
-note for AlarmMonitor "TODO: MonoBehaviour 여부 미정 (순수 C# 클래스일 수 있음)"
-note for RobotStatusTracker "TODO: MonoBehaviour 여부 미정 (순수 C# 클래스일 수 있음)"
+note for AlarmMonitor "구현: 순수 C# 클래스 (MonoBehaviour 아님). 스테이션별 최근 불량률로 알림 판정"
+note for RobotStatusTracker "구현: 순수 C# 클래스 (MonoBehaviour 아님). 로봇2만 Assembling 상태를 가질 수 있음"
 note for FinishedProductInspector "TODO: 완제품 촬영(FR-18)은 제외. 카메라 참조 추가 여부 미정"
 note for PartBase "abstract. Kind는 자식이 고정 (PartInfo=Claw, BaseInfo=RobotModule)"
 
@@ -414,7 +413,7 @@ style ProcessCounters fill:#d3e3f7,stroke:#2f5d9e
 | `ConveyorLine` | adapt | `ConveyorLine` | `Cell/ConveyorLine.cs` | 이송, 스토퍼, 푸셔는 그대로 씀. 출하·불량 이동 시 이탈 이벤트를 발행하도록 추가함 |
 | `RejectTote` | reuse | `NgTote` | `Cell/NgTote.cs` | 불량 적재 역할이 같음. 이름만 바꿈 |
 | `PartInfo` | adapt | `PartInfo` | `Cell/PartInfo.cs` | `PartBase`를 상속. 원본 `halfHeight`, `symmetryDeg`, `gripOffset`을 유지하고 각도 오차 필드(`assemblyAngleError`)를 추가함 |
-| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | `PartBase`를 상속. 부품2(로봇모듈)가 베이스. 원본 `floorHeight`, `topHeight`를 유지하고, 클로가 붙는 구멍 정보(`holeType`)와 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함 |
+| `BaseInfo` | adapt | `BaseInfo` | `Cell/BaseInfo.cs` | `PartBase`를 상속. 부품2(로봇모듈)가 베이스. 원본 `floorHeight`, `topHeight`를 유지하고, 구멍 중심(`HoleCenter`)과 수평 조립용 `Transform socket`(위치와 접근 방향)을 추가함. 맞는 부품은 `Accepts`로 확인하므로 `holeType`은 두지 않음 |
 | `PartBase` | new | 없음 | — | `PartInfo`와 `BaseInfo`의 공통 부모. `id`, `defectType`, `Kind`를 가지며, `Kind`는 자식이 고정함 |
 | `PartKind` (열거형) | adapt | `PartType` (이름과 구조만 가져옴) | `Cell/PartInfo.cs` | 값은 원본 Cube, Prism 대신 역할인 Claw(부품1, `moto_part/claw.prefab`), RobotModule(부품2, `moto_bot 1/moto_base.prefab`)으로 바꿈. 모양 enum은 만들지 않음 |
 | `DefectType` (열거형) | adapt | `DefectType` (Offset, WrongPart, Missing) | `Sequence/AssemblySequence.cs` | 값을 SRS 용어(일부 부품 상실, 결합 틀어짐)로 바꿈 |
