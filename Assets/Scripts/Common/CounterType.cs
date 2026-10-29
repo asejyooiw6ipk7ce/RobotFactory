@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-public enum CounterType
+﻿public enum CounterType
 {
     Input,      // 투입
     Inspected,  // 검사 완료 (완제품 검사 수)
