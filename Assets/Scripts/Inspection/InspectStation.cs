@@ -33,6 +33,22 @@ public class InspectStation : MonoBehaviour
 
     private int serial;
 
+    [Header("검사 결과")]
+    public InspectRejectSequence reject;
+
+    [Header("사람이 부품을 치운 뒤 스테이션 다시 사용")]
+    private bool failed = false;   // 폐기 실패로 멈춘 상태
+
+    [ContextMenu("Clear Failure")]     // 인스펙터 ? 메뉴에서 실행할 수 있게 함
+    public void ClearFailure()
+    {
+        if (!failed) return;
+        failed = false;
+        isInspecting = false;
+        belt.ResumeConveyor();
+        StartCoroutine(stopper.Resume());
+    }
+
     //부품 검사지점 도착 감지
     public void OnTriggerEnter(Collider other)
     { 
@@ -58,7 +74,21 @@ public class InspectStation : MonoBehaviour
 
         // 4. 검사
         RobotStatusTracker.Set(robotId, RobotState.Working);
-        yield return new WaitForSeconds(5f);  //TODO 검사
+        yield return new WaitForSeconds(5f);  //TODO inspection wait
+
+        // 검사 결과가 Fail이면 폐기 후 재개
+        if (testResult == InspectResult.Fail)
+        {
+            yield return reject.Reject();
+
+            if (!reject.LastRejectOK)
+            {
+                Debug.LogError("[InspectStation] 폐기 실패 - 부품이 벨트 위에 남아 있음");
+                failed = true;
+                yield break;   // 아래 재개 코드를 실행하지 않음
+            }
+        }
+        
         //검사가 끝난 뒤 이벤트 발행
         var defect = testResult == InspectResult.Pass ? DefectType.None : testDefect;
         InspectEventBus.Publish(new InspectEvent($"P{++serial:0000}", stationId, testResult, defect, Time.time));
