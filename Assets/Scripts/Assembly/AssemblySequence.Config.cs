@@ -24,10 +24,6 @@ public partial class AssemblySequence
     // UML: + Transform basePoint
     public Transform basePoint;
 
-    [Tooltip("불량 부품 폐기함 (기준점 = 폐기함 바닥 가운데)")]
-    // UML: + Transform rejectBin
-    public Transform rejectBin;
-
     #endregion
 
     #region 조립 대상 및 공정 파라미터 (공정 설정)
@@ -95,10 +91,10 @@ public partial class AssemblySequence
     public float alignLinearSpeed = 0.35f;
 
     [Tooltip("수평 삽입 전진 속도 (m/s)")]
-    public float insertSpeed = 0.05f;
+    public float insertSpeed = 0.10f;
 
     [Tooltip("6단계 분리 후 상공 수직 상승 속도 (m/s, 기본 0.25m/s - SmoothStep 가감속 적용)")]
-    public float retractLiftSpeed = 0.25f;
+    public float retractLiftSpeed = 0.35f;
 
     [Tooltip("체크 시 차체(targetRobotBase)의 회전을 실시간 감지하여 소켓 삽입 방향을 자동 계산 (해제 시 customInsertDir 수동 사용)")]
     public bool autoDetectInsertDir = true;
@@ -129,17 +125,21 @@ public partial class AssemblySequence
     [Range(0f, 1f)]
     public float defectProbability = 0.10f;
 
+    /// <summary>
+    /// 상위 제어기(ProcessController) 또는 외부에서 동적으로 결함 확률을 주입/조회할 수 있는 프로퍼티 (SRS FR-08: 0~100%, 기본 10%)
+    /// ProcessController 없이도 인스펙터나 스크립트에서 단독 테스트 가능
+    /// </summary>
+    public float DefectProbability
+    {
+        get => defectProbability;
+        set => defectProbability = Mathf.Clamp01(value);
+    }
+
     [Tooltip("불량 발생 시 결합 각도 오차 범위 (도, SRS 명세: 5~20도)")]
     public Vector2 defectiveAngleRange = new Vector2(5f, 20f);
 
     [Tooltip("정상 결합 시 잔여 각도 오차 범위 (도, SRS 명세: 0~1.5도)")]
     public Vector2 normalAngleRange = new Vector2(0f, 1.5f);
-
-    [Header("폐기 설정 (FR-04, FR-07)")]
-    [Tooltip("폐기함 바닥에서 놓을 높이 (m)")]
-    public float rejectDropHeight = 0.10f;
-    [Tooltip("폐기함 반경 (m)")]
-    public float rejectBinRadius = 0.08f;
 
     [Header("작업 반경 시각화 및 배치 검증")]
     [Tooltip("로봇 작업 반경 대비 주요 공정 위치(클로, 소켓, 폐기함, 컨베이어) 도달 가능 상태 가이드선 표시")]

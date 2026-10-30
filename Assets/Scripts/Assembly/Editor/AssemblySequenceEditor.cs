@@ -251,7 +251,6 @@ public class AssemblySequenceEditor : Editor
             DrawTargetReachDiagnostic(seq.ik, "부품1 픽업 (Claw)", seq.partStopPoint != null ? seq.partStopPoint.position : (seq.clawPart != null ? seq.GetPickPosition() : (Vector3?)null));
             seq.GetSlotInfo(out Vector3 sc, out _, out _);
             DrawTargetReachDiagnostic(seq.ik, "부품2 소켓 (Socket)", sc != Vector3.zero ? (Vector3?)sc : null);
-            DrawTargetReachDiagnostic(seq.ik, "불량 폐기함 (RejectBin)", seq.rejectBin != null ? (Vector3?)seq.rejectBin.position : null);
             if (seq.outputConveyorPoint != null)
                 DrawTargetReachDiagnostic(seq.ik, "완제품 배출 (Conveyor C)", seq.outputConveyorPoint.position);
 
@@ -357,17 +356,46 @@ public class AssemblySequenceEditor : Editor
             if (Application.isPlaying) seq.RunStep4_Align();
             else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
         }
-        if (GUILayout.Button("5단계. 슬롯 수평 삽입 및 결합 (TestTarget 기준)", GUILayout.Height(26)))
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("5단계. 수평 삽입 & 스냅 결합 (확률 오차 적용)", GUILayout.Height(26)))
         {
-            if (Application.isPlaying) seq.RunStep5_Insert();
+            if (Application.isPlaying) seq.RunStep5_Insert(true);
             else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
         }
+        if (GUILayout.Button("0° 고정", GUILayout.Width(75), GUILayout.Height(26)))
+        {
+            if (Application.isPlaying) seq.RunStep5_Insert(false);
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        EditorGUILayout.EndHorizontal();
         if (GUILayout.Button("6단계. 그리퍼 분리 및 대기 복귀 (Release & Retract)", GUILayout.Height(26)))
         {
             if (Application.isPlaying) seq.RunStep6_Release();
             else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
         }
 
+        EditorGUILayout.EndVertical();
+
+        // 6-2. 결합 불량률 실시간 제어 (FR-08)
+        EditorGUILayout.Space(8);
+        EditorGUILayout.BeginVertical("box");
+        GUILayout.Label("🎲 결합 불량률 실시간 제어 (FR-08 결합 틀어짐)", EditorStyles.boldLabel);
+        float currentProb = seq.DefectProbability;
+        float newProb = EditorGUILayout.Slider("불량 발생 확률 (DefectProbability):", currentProb, 0f, 1f);
+        if (Mathf.Abs(newProb - currentProb) > 0.001f)
+        {
+            seq.DefectProbability = newProb;
+            EditorUtility.SetDirty(seq);
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("0% (전부 양품)", EditorStyles.miniButton)) { seq.DefectProbability = 0f; EditorUtility.SetDirty(seq); }
+        if (GUILayout.Button("10% (SRS 기본)", EditorStyles.miniButton)) { seq.DefectProbability = 0.10f; EditorUtility.SetDirty(seq); }
+        if (GUILayout.Button("50%", EditorStyles.miniButton)) { seq.DefectProbability = 0.50f; EditorUtility.SetDirty(seq); }
+        if (GUILayout.Button("100% (전부 불량)", EditorStyles.miniButton)) { seq.DefectProbability = 1.0f; EditorUtility.SetDirty(seq); }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.HelpBox($"• 양품 오차: 0°~1.5° (정상 허용 잔여 오차)\n• 불량 오차: 5°~20° (SRS FR-08 규격: 클로 축 Roll 틀어짐)\n• 최근 적용 각도: {seq.LastAngleError:F2}° (불량 여부: {(Mathf.Abs(seq.LastAngleError) >= seq.defectiveAngleRange.x ? "불량(NG)" : "정상(OK)")})", MessageType.None);
         EditorGUILayout.EndVertical();
 
         // 7. 메인 시퀀스 실행 버튼들 (Assemble / Reject / Refeed)
@@ -382,22 +410,13 @@ public class AssemblySequenceEditor : Editor
         }
         GUI.backgroundColor = Color.white;
 
-        GUILayout.BeginHorizontal();
-        GUI.backgroundColor = new Color(0.9f, 0.4f, 0.4f);
-        if (GUILayout.Button("🗑️ 불량 부품 폐기 (Reject)", GUILayout.Height(30)))
-        {
-            if (Application.isPlaying) seq.StartCoroutine(seq.Reject(false));
-            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
-        }
-
         GUI.backgroundColor = new Color(0.3f, 0.6f, 0.9f);
-        if (GUILayout.Button("🔄 재투입 재조립 (Refeed)", GUILayout.Height(30)))
+        if (GUILayout.Button("🔄 재투입 재조립 (Refeed)", GUILayout.Height(32)))
         {
             if (Application.isPlaying) seq.StartCoroutine(seq.Refeed());
             else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
         }
         GUI.backgroundColor = Color.white;
-        GUILayout.EndHorizontal();
 
         // 상태 표시
         EditorGUILayout.Space(6);

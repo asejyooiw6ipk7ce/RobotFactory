@@ -30,7 +30,6 @@ public partial class AssemblySequence : MonoBehaviour
     public string Status { get; private set; } = "대기";
     public bool LastAssemblyOk { get; private set; } = false;
     public float LastAngleError { get; private set; } = 0f;
-    public bool LastRejectOk { get; private set; } = false;
 
     // 편의 접근자
     public PartInfo CurrentPart => currentPartInfo;
@@ -106,43 +105,46 @@ public partial class AssemblySequence : MonoBehaviour
     }
 
 
+    /// <summary>
+    /// 로봇과 부품을 완전히 초기 상태로 복원하는 코루틴 (동기식 대기 보장)
+    /// </summary>
+    public IEnumerator ResetToInitialStateRoutine()
+    {
+        IsBusy = true;
+        Status = "초기화 진행 중...";
+
+        // 1. 클로 복원
+        ResetClawToInitialState();
+
+        // 2. 그리퍼 열기
+        if (gripper != null)
+        {
+            yield return gripper.Open();
+        }
+
+        // 3. 로봇 암 초기 자세로 안전 복귀 (Joint Space 기준)
+        if (ik != null)
+        {
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.ReturnToHomeJoints(0.8f);
+        }
+
+        yield return new WaitForSeconds(0.1f);
+        IsBusy = false;
+        Status = "대기 (초기화 완료)";
+    }
+
+    /// <summary>
     /// [원클릭 초기화] 언제든 클로를 컨베이어 원위치로 되돌리고 로봇을 단정한 홈 자세로 복원
     /// </summary>
     [ContextMenu("초기 상태로 리셋 (Reset to Initial State)")]
     public void ResetToInitialState()
     {
-        if (clawPart != null)
-        {
-            if (initialClawRecorded)
-            {
-                clawPart.SetParent(initialClawParent, true);
-                clawPart.position = initialClawPosition;
-                clawPart.rotation = initialClawRotation;
-            }
-            else if (partStopPoint != null)
-            {
-                clawPart.SetParent(null, true);
-                clawPart.position = partStopPoint.position;
-            }
-            var rb = clawPart.GetComponent<Rigidbody>();
-            if (rb != null) rb.isKinematic = true;
-            Debug.Log("[AssemblySequence] 부품1(클로)이 컨베이어 초기 위치로 리셋되었습니다.");
-        }
-
-        if (gripper != null)
-        {
-            StartCoroutine(gripper.Open());
-        }
-
-        if (ik != null)
-        {
-            ik.pointDown = true;
-            ik.useTargetLookDir = false;
-            StartCoroutine(ik.MoveTo(GetHomeWorldPosition(), null));
-        }
-
-        IsBusy = false;
-        Status = "대기 (초기화 완료)";
+        StopAllCoroutines();
+        isStepBusy = false;
+        isContinuousBusy = false;
+        StartCoroutine(ResetToInitialStateRoutine());
     }
 
 
@@ -320,12 +322,6 @@ public partial class AssemblySequence : MonoBehaviour
         if (basePoint == null && targetRobotBase != null)
         {
             basePoint = targetRobotBase;
-        }
-        if (rejectBin == null)
-        {
-            GameObject binObj = GameObject.Find("RejectBin");
-            if (binObj == null) binObj = GameObject.Find("reject_bin");
-            if (binObj != null) rejectBin = binObj.transform;
         }
 
         // 7. TestTarget (사용자 지정 정밀 소켓 위치) 탐색
@@ -661,8 +657,6 @@ public partial class AssemblySequence : MonoBehaviour
             {
                 rb.isKinematic = true;
                 rb.useGravity = false;
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
             }
             clawPart.SetParent(parentPoint, true);
             Debug.Log($"[AssemblySequence] 부품1(클로)을 '{parentPoint.name}'의 자식으로 결합(Attach) 완료.");
@@ -778,18 +772,40 @@ public partial class AssemblySequence : MonoBehaviour
     #endregion
 
     #region 다이어그램 조립 시퀀스 (Assemble)
+    /// <summary>
+    /// SRS FR-08 결합 틀어짐 각도 오차 산출 (난수 생성)
+    /// - 0~1 사이 난수가 불량 확률보다 작으면: 5°~20° 사이 균등 난수 (불량)
+    /// - 그렇지 않으면: 0°~1.5° 사이 균등 난수 (정상 잔여 오차)
+    /// </summary>
+    public float CalculateAngleError(float? customDefectProbability = null)
+    {
+        float prob = customDefectProbability.HasValue ? Mathf.Clamp01(customDefectProbability.Value) : defectProbability;
+        bool willBeDefective = (UnityEngine.Random.value < prob);
+        float angleError = willBeDefective
+            ? UnityEngine.Random.Range(defectiveAngleRange.x, defectiveAngleRange.y)
+            : UnityEngine.Random.Range(normalAngleRange.x, normalAngleRange.y);
+
+        if (UnityEngine.Random.value < 0.5f) angleError = -angleError;
+        return angleError;
+    }
 
     public IEnumerator Assemble()
     {
-        yield return Assemble(-1f);
+        yield return Assemble(-1f, null, null);
     }
 
+    public IEnumerator Assemble(float graspYaw)
+    {
+        yield return Assemble(graspYaw, null, null);
+    }
 
     /// <summary>
     /// [UML: + Assemble(float graspYaw) : IEnumerator]
     /// 전체 수평 조립 시퀀스 실행 (SRS FR-07 및 FR-08 준수)
+    /// - 상위 제어기(ProcessController)가 overrideDefectProbability 또는 forcedAngleError를 주입할 수 있음
+    /// - 인자 미지정 시 인스펙터의 DefectProbability 및 자체 계산으로 단독 실행
     /// </summary>
-    public IEnumerator Assemble(float graspYaw)
+    public IEnumerator Assemble(float graspYaw, float? overrideDefectProbability, float? forcedAngleError = null)
     {
         if (IsBusy) yield break;
 
@@ -942,13 +958,13 @@ public partial class AssemblySequence : MonoBehaviour
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 결합 틀어짐 확률 계산 (FR-08)
-        bool willBeDefective = (UnityEngine.Random.value < defectProbability);
-        float angleError = willBeDefective
-            ? UnityEngine.Random.Range(defectiveAngleRange.x, defectiveAngleRange.y)
-            : UnityEngine.Random.Range(normalAngleRange.x, normalAngleRange.y);
+        // 결합 틀어짐 각도 결정 (직접 지정된 오차 -> 오버라이드 확률 -> 기본 DefectProbability 순)
+        float angleError = forcedAngleError.HasValue
+            ? forcedAngleError.Value
+            : CalculateAngleError(overrideDefectProbability);
 
-        if (UnityEngine.Random.value < 0.5f) angleError = -angleError;
         LastAngleError = angleError;
+        bool isAngleDefect = Mathf.Abs(angleError) >= defectiveAngleRange.x;
 
         // 소켓에 완벽 스냅 결합 및 오차 주입 (내부에서 PartInfo / BaseInfo.defectType 기록)
         SnapClawToSocket(angleError);
@@ -958,10 +974,12 @@ public partial class AssemblySequence : MonoBehaviour
             currentPartInfo.assemblyAngleError = angleError;
         }
 
-        DefectType finalDefect = willBeDefective ? DefectType.AngleError : DefectType.None;
+        LastAssemblyOk = true; // ★ 7단계 스냅 결합 완료 즉시 조립 성공 판정 (20초 이내 결합 요건 만족)
+
+        DefectType finalDefect = isAngleDefect ? DefectType.AngleError : DefectType.None;
         Debug.Log($"[AssemblySequence] 결합 완료 | 틀어짐 각도: {angleError:F2}° (불량 유형: {finalDefect})");
 
-        yield return new WaitForSeconds(0.3f);
+        yield return new WaitForSeconds(0.15f);
 
         // 8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴
         Status = "8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴";
@@ -978,20 +996,20 @@ public partial class AssemblySequence : MonoBehaviour
             ik.pointDown = false;
             ik.useTargetLookDir = true;
             ik.targetLookDir = insertDir;
-            yield return ik.MoveLinear(insertApproach, 0.08f, alignWristYaw);
+            yield return ik.MoveLinear(insertApproach, 0.18f, alignWristYaw);
 
             // 상공으로 수직 상승 후 홈 복귀 (차체 간섭 방지)
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
 
-            // 대기 자세로 복귀
+            // 대기 자세(Home)로 초기 관절 각도로 안전 복귀
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.MoveTo(GetHomeWorldPosition(), 0f);
+            yield return ik.ReturnToHomeJoints(1.0f);
         }
 
         LastAssemblyOk = true;
-        Status = $"조립 완료 (오차: {angleError:F1}°, 불량: {willBeDefective})";
+        Status = $"조립 완료 (오차: {angleError:F1}°, 불량: {isAngleDefect})";
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -999,110 +1017,6 @@ public partial class AssemblySequence : MonoBehaviour
     #endregion
 
     #region 다이어그램 폐기 (Reject) 및 재투입 (Refeed)
-
-
-    /// <summary>
-    /// [UML: + Reject(bool keepDropped) : IEnumerator]
-    /// 불량 부품을 파지하여 폐기함(RejectBin)으로 투하 (FR-04, FR-07)
-    /// </summary>
-    public IEnumerator Reject(bool keepDropped = false)
-    {
-        if (IsBusy) yield break;
-
-        IsBusy = true;
-        LastRejectOk = false;
-        DefectType defectReason = (currentPartInfo != null) ? currentPartInfo.defectType : DefectType.AngleError;
-        Status = $"[폐기] 시작: 불량 부품 처리 (유형: {defectReason})";
-        Debug.Log($"[AssemblySequence] {Status}");
-
-        AutoFindReferences();
-        ApplyGripperCloseTarget();
-
-        // [폐기 대상 클로 안전 확보] 클로가 이전 조립 잔재(차체 등)에 결합되어 있다면 컨베이어 초기 위치로 복원 후 폐기
-        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
-        {
-            ResetClawToInitialState();
-        }
-
-        if (clawPart == null)
-        {
-            Status = "[폐기 실패] 폐기할 부품이 없습니다.";
-            Debug.LogWarning($"[AssemblySequence] {Status}");
-            IsBusy = false;
-            yield break;
-        }
-
-        if (rejectBin == null)
-        {
-            Debug.LogWarning("[AssemblySequence] RejectBin이 지정되지 않아 기본 위치를 생성합니다.");
-            GameObject newBin = GameObject.Find("RejectBin");
-            if (newBin == null) newBin = new GameObject("RejectBin");
-            newBin.transform.position = new Vector3(-0.4f, 0.2f, 0.3f);
-            rejectBin = newBin.transform;
-        }
-
-        Vector3 pickPos = GetPickPosition();
-        Vector3 pickApproach = pickPos + Vector3.up * approachHeight;
-        float safeTransitY = pickApproach.y + 0.05f;
-        Vector3 safeHighTransit = new Vector3(pickPos.x, safeTransitY, pickPos.z);
-        float targetYaw = GetEffectiveYaw();
-
-        // 1. 그리퍼 열기 및 클로 상공 접근
-        if (gripper != null) yield return gripper.Open();
-        if (ik != null)
-        {
-            ik.pointDown = true;
-            yield return ik.MoveTo(safeHighTransit, null);
-            yield return ik.MoveLinear(pickApproach, 0.08f, targetYaw);
-            yield return ik.MoveLinear(pickPos, 0.05f, targetYaw);
-        }
-
-        // 2. 파지
-        if (gripper != null) yield return gripper.Close();
-        AttachClawToGripper();
-        yield return new WaitForSeconds(0.2f);
-
-        // 3. 폐기함 상공으로 이동
-        Vector3 binPos = rejectBin.position;
-        Vector3 binAbove = new Vector3(binPos.x, Mathf.Max(binPos.y + 0.35f, safeTransitY), binPos.z);
-        Vector3 binDrop = new Vector3(binPos.x, binPos.y + rejectDropHeight, binPos.z);
-
-        if (ik != null)
-        {
-            yield return ik.MoveLinear(safeHighTransit, 0.08f, targetYaw);
-            yield return ik.MoveTo(binAbove, 0f);
-            yield return ik.MoveLinear(binDrop, 0.08f, 0f);
-        }
-
-        // 4. 폐기함에 부품 놓기
-        Status = "[폐기] 부품 투하";
-        if (gripper != null) yield return gripper.Open();
-
-        if (!keepDropped && clawPart != null)
-        {
-            var rb = clawPart.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.isKinematic = false;
-                rb.useGravity = true;
-            }
-            clawPart.SetParent(null, true);
-        }
-
-        yield return new WaitForSeconds(0.4f);
-
-        // 5. 복귀
-        if (ik != null)
-        {
-            yield return ik.MoveLinear(binAbove, 0.08f, 0f);
-            yield return ik.MoveTo(GetHomeWorldPosition(), 0f);
-        }
-
-        LastRejectOk = true;
-        Status = $"[폐기 완료] {defectReason} 불량 부품 폐기함 투하 완료";
-        Debug.Log($"[AssemblySequence] {Status}");
-        IsBusy = false;
-    }
 
 
     /// <summary>
@@ -1116,34 +1030,11 @@ public partial class AssemblySequence : MonoBehaviour
         Status = "[재투입] 새 부품으로 재조립 준비";
         Debug.Log($"[AssemblySequence] {Status}");
 
-        IsBusy = true;
-
-        // 1. 부품만 컨베이어 원위치로 복원 (로봇 코루틴 간섭 방지)
-        ResetClawToInitialState();
-
-        // 2. 그리퍼가 닫혀있다면 개방 완료 대기
-        if (gripper != null)
-        {
-            yield return gripper.Open();
-        }
-
-        // 3. 로봇이 홈 위치에서 벗어나 있다면 홈으로 완전 이동 대기
-        if (ik != null)
-        {
-            ik.pointDown = true;
-            ik.useTargetLookDir = false;
-            Vector3 homePos = GetHomeWorldPosition();
-            Vector3 curTip = (ik.tip != null) ? ik.tip.position : transform.position;
-            if (Vector3.Distance(curTip, homePos) > 0.05f)
-            {
-                yield return ik.MoveTo(homePos, null);
-            }
-        }
-
+        // 1. 로봇 및 부품을 완벽하게 홈 상태로 동기 대기 리셋
+        yield return ResetToInitialStateRoutine();
         yield return new WaitForSeconds(0.2f);
-        IsBusy = false;
 
-
+        // 2. 조립 시퀀스 실행
         yield return Assemble(-1f);
     }
 

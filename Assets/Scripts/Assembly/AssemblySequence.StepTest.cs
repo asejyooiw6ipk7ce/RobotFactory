@@ -248,13 +248,13 @@ public partial class AssemblySequence
         IsBusy = false;
     }
 
-    public void RunStep5_Insert()
+    public void RunStep5_Insert(bool applyDefectAngle = true)
     {
         if (IsBusy) return;
-        StartCoroutine(Step5Routine());
+        StartCoroutine(Step5Routine(applyDefectAngle));
     }
 
-    private IEnumerator Step5Routine()
+    private IEnumerator Step5Routine(bool applyDefectAngle = true)
     {
         IsBusy = true;
         Status = "5단계: 수평 삽입 및 스냅 결합 (Socket 기준)";
@@ -272,10 +272,12 @@ public partial class AssemblySequence
             yield return ik.MoveLinearSmooth(tipInsertGoal, insertSpeed, alignWristYaw);
         }
 
-        // 스냅 결합 안착 (기준 0도 결합)
-        SnapClawToSocket(0f);
+        // 스냅 결합 안착 (설정된 불량률에 따른 각도 오차 적용)
+        float angleError = applyDefectAngle ? CalculateAngleError() : 0f;
+        SnapClawToSocket(angleError);
+        LastAngleError = angleError;
 
-        Status = "5단계 완료: 수평 삽입 및 스냅 완료";
+        Status = $"5단계 완료: 수평 삽입 및 스냅 완료 (오차: {angleError:F1}°)";
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -312,10 +314,10 @@ public partial class AssemblySequence
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
 
-            // 3. 홈 대기 자세로 복귀
+            // 3. 홈 대기 자세로 복귀 (초기 관절 각도로 안전 복귀)
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.MoveTo(GetHomeWorldPosition(), 0f);
+            yield return ik.ReturnToHomeJoints(1.0f);
         }
 
         Status = "6단계 완료: 전체 복귀 완료";
@@ -359,12 +361,6 @@ public partial class AssemblySequence
         Gizmos.DrawWireSphere(slotCenter, 0.035f);  // 5단계 조립 완성 슬롯
         Gizmos.DrawLine(approachPos, slotCenter);    // 수평 삽입 경로
 
-        if (rejectBin != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(rejectBin.position + Vector3.up * rejectDropHeight, rejectBinRadius);
-        }
-
         // 공정 배치 위치 및 로봇 작업 반경 도달 가이드선
         if (showReachabilityGizmos && ik != null)
         {
@@ -385,7 +381,6 @@ public partial class AssemblySequence
             if (slotCenter != Vector3.zero) DrawReachGuideLine(center, slotCenter, "부품2 (Socket)");
 
             // 3. 폐기함
-            if (rejectBin != null) DrawReachGuideLine(center, rejectBin.position, "폐기함 (Reject)");
 
             // 4. 완제품 배출 컨베이어
             if (outputConveyorPoint != null) DrawReachGuideLine(center, outputConveyorPoint.position, "완제품 (Conveyor)");
@@ -435,5 +430,5 @@ public partial class AssemblySequence
 #endif
 
     #endregion
-}
 
+}

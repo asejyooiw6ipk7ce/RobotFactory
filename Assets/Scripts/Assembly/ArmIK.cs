@@ -120,6 +120,21 @@ public partial class ArmIK : MonoBehaviour
             joints[j].xDrive = d;
         }
     }
+    /// <summary>
+    /// 로봇의 모든 관절을 에디터 시작 시점의 초기 자세(theta0)로 부드럽게 복귀 (수치 역기구학 오차 및 관절 뒤틀림 원천 방지)
+    /// </summary>
+    public IEnumerator ReturnToHomeJoints(float duration = 1.0f)
+    {
+        if (joints == null || theta0 == null || theta0.Length < n) yield break;
+        IsMoving = true;
+        activeYaw = null;
+        pointDown = true;
+        useTargetLookDir = false;
+        yield return Drive(theta0, duration, true);
+        yield return Settle();
+        IsMoving = false;
+    }
+
 
     //관절, 그리퍼 끝(attachPoint), 오른쪽 손가락을 이름으로 찾아서 넣기
     //인스펙터에 값이 있으면 그대로 사용
