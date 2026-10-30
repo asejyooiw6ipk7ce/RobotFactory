@@ -4,7 +4,7 @@ using UnityEngine;
 public class ConveyorController : MonoBehaviour
 {
     [Header("컨베이어 정지 설정")]
-    public bool stopConveyor = false;
+    public bool isConveyorRunning = true;
 
     [Header("속도 설정")]
     public float normalSpeed = 2f;
@@ -41,7 +41,7 @@ public class ConveyorController : MonoBehaviour
 
         targetRenderer.GetPropertyBlock(propertyBlock);
 
-        float speed = stopConveyor ? 0f : normalSpeed;
+        float speed = isConveyorRunning ? 0f : normalSpeed;
         propertyBlock.SetFloat(speedID, speed);
 
         targetRenderer.SetPropertyBlock(propertyBlock);
@@ -50,7 +50,7 @@ public class ConveyorController : MonoBehaviour
     // StopperController에서 호출할 정지 함수
     public void StopConveyor()
     {
-        stopConveyor = true;
+        isConveyorRunning = false;
         ApplyConveyorSpeed();
 
        
@@ -59,7 +59,7 @@ public class ConveyorController : MonoBehaviour
     // 필요할 때 컨베이어 재가동
     public void ResumeConveyor()
     {
-        stopConveyor = false;
+        isConveyorRunning = true;
         ApplyConveyorSpeed();
 
        
