@@ -22,7 +22,7 @@ public partial class AssemblySequence
     private IEnumerator ContinuousStepsRoutine(int maxStep)
     {
         isContinuousBusy = true;
-        Status = $"1~{maxStep}단계 연속 실행 시작";
+        SetState(RobotState.Working, $"1~{maxStep}단계 연속 실행 시작");
         Debug.Log($"[AssemblySequence] ▶ {Status}");
 
         // 1단계. 클로 상공 안전 접근
@@ -75,7 +75,7 @@ public partial class AssemblySequence
 
         isContinuousBusy = false;
         IsBusy = false;
-        Status = $"1~{maxStep}단계 연속 실행 완료";
+        SetState(RobotState.Idle, $"1~{maxStep}단계 연속 실행 완료");
         Debug.Log($"[AssemblySequence] ✅ {Status}");
     }
 
@@ -88,7 +88,7 @@ public partial class AssemblySequence
     private IEnumerator Step1Routine()
     {
         IsBusy = true;
-        Status = "1단계: 클로 상공 안전 접근";
+        SetState(RobotState.Moving, "1단계: 클로 상공 안전 접근");
         Debug.Log($"[AssemblySequence] {Status}");
         AutoFindReferences();
         ApplyGripperCloseTarget();
@@ -117,7 +117,7 @@ public partial class AssemblySequence
             yield return ik.MoveTo(pickApproach, targetYaw);
         }
 
-        Status = "1단계 완료: 클로 상공 접근 성공";
+        SetState(RobotState.Moving, "1단계 완료: 클로 상공 접근 성공");
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -131,7 +131,7 @@ public partial class AssemblySequence
     private IEnumerator Step2Routine()
     {
         IsBusy = true;
-        Status = "2단계: 하강 및 그리퍼 파지";
+        SetState(RobotState.Working, "2단계: 하강 및 그리퍼 파지");
         Debug.Log($"[AssemblySequence] {Status}");
         AutoFindReferences();
         ApplyGripperCloseTarget();
@@ -158,7 +158,7 @@ public partial class AssemblySequence
         AttachClawToGripper();
         yield return new WaitForSeconds(0.2f);
 
-        Status = "2단계 완료: 파지 및 결합 완료";
+        SetState(RobotState.Working, "2단계 완료: 파지 및 결합 완료");
         IsBusy = false;
     }
 
@@ -171,7 +171,7 @@ public partial class AssemblySequence
     private IEnumerator Step3Routine()
     {
         IsBusy = true;
-        Status = "3단계: 상공 들어올리기 (Lift)";
+        SetState(RobotState.Working, "3단계: 상공 들어올리기 (Lift)");
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 클로가 그리퍼에 단단히 결합되어 있는지 보장 (낙하 방지)
@@ -191,7 +191,7 @@ public partial class AssemblySequence
             yield return ik.MoveLinearSmooth(liftGoal, liftSpeed, targetYaw);
         }
 
-        Status = "3단계 완료: 상공 리프팅 완료";
+        SetState(RobotState.Working, "3단계 완료: 상공 리프팅 완료");
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -205,7 +205,7 @@ public partial class AssemblySequence
     private IEnumerator Step4Routine()
     {
         IsBusy = true;
-        Status = "4단계: 수평 정렬 (4.1 수평 회전 -> 4.2 베이스 회전 -> 4.3 정렬)";
+        SetState(RobotState.Moving, "4단계: 수평 정렬 (4.1 수평 회전 -> 4.2 베이스 회전 -> 4.3 정렬)");
         Debug.Log($"[AssemblySequence] {Status}");
 
         EnsureInsertDirectionDefault();
@@ -243,7 +243,7 @@ public partial class AssemblySequence
             yield return new WaitForSeconds(0.2f);
         }
 
-        Status = "4단계 완료: 소켓 앞 수평 정렬 성공";
+        SetState(RobotState.Moving, "4단계 완료: 소켓 앞 수평 정렬 성공");
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -257,7 +257,7 @@ public partial class AssemblySequence
     private IEnumerator Step5Routine(bool applyDefectAngle = true)
     {
         IsBusy = true;
-        Status = "5단계: 수평 삽입 및 스냅 결합 (Socket 기준)";
+        SetState(RobotState.Assembling, "5단계: 수평 삽입 및 스냅 결합 (Socket 기준)");
         Debug.Log($"[AssemblySequence] {Status}");
 
         GetSlotInfo(out Vector3 slotCenter, out Vector3 insertApproach, out Vector3 insertDir);
@@ -277,7 +277,7 @@ public partial class AssemblySequence
         SnapClawToSocket(angleError);
         LastAngleError = angleError;
 
-        Status = $"5단계 완료: 수평 삽입 및 스냅 완료 (오차: {angleError:F1}°)";
+        SetState(RobotState.Assembling, $"5단계 완료: 수평 삽입 및 스냅 완료 (오차: {angleError:F1}°)");
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -291,7 +291,7 @@ public partial class AssemblySequence
     private IEnumerator Step6Routine()
     {
         IsBusy = true;
-        Status = "6단계: 그리퍼 분리 및 대기 복귀";
+        SetState(RobotState.Working, "6단계: 그리퍼 분리 및 대기 복귀");
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 1. 그리퍼 개방 (분리)
@@ -320,7 +320,7 @@ public partial class AssemblySequence
             yield return ik.ReturnToHomeJoints(1.0f);
         }
 
-        Status = "6단계 완료: 전체 복귀 완료";
+        SetState(RobotState.Idle, "6단계 완료: 전체 복귀 완료");
         IsBusy = false;
     }
 

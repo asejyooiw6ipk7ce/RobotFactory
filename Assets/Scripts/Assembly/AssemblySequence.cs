@@ -31,7 +31,50 @@ public partial class AssemblySequence : MonoBehaviour
         get => isStepBusy || isContinuousBusy;
         private set => isStepBusy = value;
     }
-    public string Status { get; private set; } = "대기";
+    [Tooltip("로봇 번호 (스테이션 2 = 로봇 2)")]
+    public int robotId = 2;
+
+    /// <summary>
+    /// [SSOT] 로봇 2의 시스템 상태 (대시보드 및 공정 이벤트와 100% 동기화)
+    /// </summary>
+    public RobotState CurrentRobotState { get; private set; } = RobotState.Idle;
+    private string stepDetail = "대기";
+
+    /// <summary>
+    /// [계산 프로퍼티] RobotState와 세부 진행 설명을 통합 반환 (에디터 인스펙터 및 디버그용)
+    /// </summary>
+    public string Status => string.IsNullOrEmpty(stepDetail)
+        ? GetRobotStateKorean(CurrentRobotState)
+        : $"[{GetRobotStateKorean(CurrentRobotState)}] {stepDetail}";
+
+    /// <summary>
+    /// 로봇 상태 및 세부 공정 단계를 단일 진입점으로 통합 갱신합니다.
+    /// 상태 변경 시 RobotStatusTracker를 통해 대시보드 및 이벤트 버스로 즉시 브로드캐스트됩니다.
+    /// </summary>
+    public void SetState(RobotState newState, string detail = null)
+    {
+        bool stateChanged = CurrentRobotState != newState;
+        CurrentRobotState = newState;
+        stepDetail = detail;
+
+        if (stateChanged)
+        {
+            RobotStatusTracker.Set(robotId, newState);
+        }
+    }
+
+    private static string GetRobotStateKorean(RobotState state)
+    {
+        return state switch
+        {
+            RobotState.Idle => "대기",
+            RobotState.Moving => "이동",
+            RobotState.Working => "작업",
+            RobotState.Assembling => "조립",
+            RobotState.Error => "오류",
+            _ => state.ToString()
+        };
+    }
     public bool LastAssemblyOk { get; private set; } = false;
     public float LastAngleError { get; private set; } = 0f;
 
@@ -115,7 +158,7 @@ public partial class AssemblySequence : MonoBehaviour
     public IEnumerator ResetToInitialStateRoutine()
     {
         IsBusy = true;
-        Status = "초기화 진행 중...";
+        SetState(RobotState.Moving, "초기화 진행 중...");
 
         // 1. 클로 복원
         ResetClawToInitialState();
@@ -136,7 +179,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         yield return new WaitForSeconds(0.1f);
         IsBusy = false;
-        Status = "대기 (초기화 완료)";
+        SetState(RobotState.Idle, "초기화 완료");
     }
 
     /// <summary>
@@ -816,7 +859,7 @@ public partial class AssemblySequence : MonoBehaviour
         IsBusy = true;
         LastAssemblyOk = false;
         LastAngleError = 0f;
-        Status = "0. 조립 시퀀스 준비 중...";
+        SetState(RobotState.Moving, "0. 조립 시퀀스 준비 중...");
         Debug.Log($"[AssemblySequence] {Status}");
 
         AutoFindReferences();
@@ -849,14 +892,14 @@ public partial class AssemblySequence : MonoBehaviour
         }
 
         // 1. 그리퍼 초기 열기 (대기 상태)
-        Status = "1. 그리퍼 개방 및 클로 감지";
+        SetState(RobotState.Working, "1. 그리퍼 개방 및 클로 감지");
         Debug.Log($"[AssemblySequence] {Status}");
         if (gripper != null) yield return gripper.Open();
 
         if (clawPart == null)
         {
             Debug.LogError("[AssemblySequence] 조립 대상 부품1(claw)을 찾을 수 없습니다.");
-            Status = "오류: 부품1 없음";
+            SetState(RobotState.Error, "부품1 없음");
             IsBusy = false;
             yield break;
         }
@@ -869,7 +912,7 @@ public partial class AssemblySequence : MonoBehaviour
         Vector3 safeHighTransit = new Vector3(pickPos.x, safeTransitY, pickPos.z);
 
         // 2. 상공 경유하여 클로 상공으로 접근 (상공 고도 0.95m 경유로 팔꿈치를 위(Elbow-Up)로 확실히 유지)
-        Status = $"2. 클로 상공으로 접근 (목표 손목 {targetYaw:F1}°)";
+        SetState(RobotState.Moving, $"2. 클로 상공으로 접근 (목표 손목 {targetYaw:F1}°)");
         Debug.Log($"[AssemblySequence] {Status}");
         if (ik != null)
         {
@@ -881,7 +924,7 @@ public partial class AssemblySequence : MonoBehaviour
         }
 
         // 3. 파지 하강 (Descend) & 그리퍼 닫기 (Grasp)
-        Status = "3. 하강 및 그리퍼 파지 (Grasp)";
+        SetState(RobotState.Working, "3. 하강 및 그리퍼 파지 (Grasp)");
         Debug.Log($"[AssemblySequence] {Status}");
         if (ik != null)
         {
@@ -899,7 +942,7 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
 
         // 4. 안전 상공 리프팅 (Lift)
-        Status = "4. 클로 들어올리기 (Lift)";
+        SetState(RobotState.Working, "4. 클로 들어올리기 (Lift)");
         Debug.Log($"[AssemblySequence] {Status}");
         AttachClawToGripper();
 
@@ -918,7 +961,7 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.15f);
 
         // 5. [4.1 & 4.2] TestTarget 소켓 앞 수평 정렬 (Horizontal Align, FR-07)
-        Status = "5. 그리퍼 수평 전환(4.1) 후 shoulder_link 회전(4.2) (소켓 앞 정렬)";
+        SetState(RobotState.Moving, "5. 그리퍼 수평 전환(4.1) 후 shoulder_link 회전(4.2) (소켓 앞 정렬)");
         Debug.Log($"[AssemblySequence] {Status}");
 
         if (ik != null)
@@ -944,7 +987,7 @@ public partial class AssemblySequence : MonoBehaviour
         }
 
         // 6. [4.3] Socket으로 수평 삽입 (Insert, FR-07)
-        Status = "6. Socket으로 수평 삽입 (Insert)";
+        SetState(RobotState.Assembling, "6. Socket으로 수평 삽입 (Insert)");
         Debug.Log($"[AssemblySequence] {Status}");
         if (ik != null)
         {
@@ -958,7 +1001,7 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
 
         // 7. 스냅 고정 및 결합 틀어짐 적용 (FR-07, FR-08)
-        Status = "7. 스냅 결합 및 결합 오차 적용 (FR-08)";
+        SetState(RobotState.Assembling, "7. 스냅 결합 및 결합 오차 적용 (FR-08)");
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 결합 틀어짐 확률 계산 (FR-08)
@@ -986,7 +1029,7 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.15f);
 
         // 8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴
-        Status = "8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴";
+        SetState(RobotState.Working, "8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴");
         Debug.Log($"[AssemblySequence] {Status}");
 
         if (gripper != null)
@@ -1013,7 +1056,7 @@ public partial class AssemblySequence : MonoBehaviour
         }
 
         LastAssemblyOk = true;
-        Status = $"조립 완료 (오차: {angleError:F1}°, 불량: {isAngleDefect})";
+        SetState(RobotState.Idle, $"조립 완료 (오차: {angleError:F1}°, 불량: {isAngleDefect})");
         Debug.Log($"[AssemblySequence] {Status}");
         IsBusy = false;
     }
@@ -1031,7 +1074,7 @@ public partial class AssemblySequence : MonoBehaviour
     {
         if (IsBusy) yield break;
 
-        Status = "[재투입] 새 부품으로 재조립 준비";
+        SetState(RobotState.Idle, "[재투입] 새 부품으로 재조립 준비");
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 1. 로봇 및 부품을 완벽하게 홈 상태로 동기 대기 리셋
