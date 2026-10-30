@@ -141,6 +141,36 @@ public partial class AssemblySequence
     [Tooltip("정상 결합 시 잔여 각도 오차 범위 (도, SRS 명세: 0~1.5도)")]
     public Vector2 normalAngleRange = new Vector2(0f, 1.5f);
 
+    [Header("조립 실패 및 재시도 설정")]
+    [Tooltip("조립 타임아웃 제한 시간 (초, 기본값: 20초)")]
+    public float assemblyTimeoutSeconds = 20.0f;
+
+    [Tooltip("타임아웃 시 최대 재시도 횟수 (기본값: 2회)")]
+    [Range(0, 5)]
+    public int maxRetryCount = 2;
+
+    [Tooltip("조립 실패 확률 (0.0 = 100% 정상 결합, 1.0 = 결합 실패로 20초 타임아웃 유발)")]
+    [Range(0f, 1f)]
+    public float assemblyFailureProbability = 0.0f;
+
+    /// <summary>
+    /// 상위 제어기(ProcessController) 또는 외부에서 동적으로 조립 실패율을 주입/조회할 수 있는 프로퍼티 (FR-07)
+    /// </summary>
+    public float AssemblyFailureProbability
+    {
+        get => assemblyFailureProbability;
+        set => assemblyFailureProbability = Mathf.Clamp01(value);
+    }
+
+    /// <summary>
+    /// 외부에서 타임아웃 제한 시간을 조회하거나 설정할 수 있는 프로퍼티 (기본 20초)
+    /// </summary>
+    public float AssemblyTimeoutSeconds
+    {
+        get => assemblyTimeoutSeconds;
+        set => assemblyTimeoutSeconds = Mathf.Max(1.0f, value);
+    }
+
     [Header("작업 반경 시각화 및 배치 검증")]
     [Tooltip("로봇 작업 반경 대비 주요 공정 위치(클로, 소켓, 폐기함, 컨베이어) 도달 가능 상태 가이드선 표시")]
     public bool showReachabilityGizmos = true;

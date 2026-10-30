@@ -77,6 +77,8 @@ public partial class AssemblySequence : MonoBehaviour
     }
     public bool LastAssemblyOk { get; private set; } = false;
     public float LastAngleError { get; private set; } = 0f;
+    public int CurrentRetryCount { get; private set; } = 0;
+    public float LastElapsedTime { get; private set; } = 0f;
 
     // 편의 접근자
     public PartInfo CurrentPart => currentPartInfo;
