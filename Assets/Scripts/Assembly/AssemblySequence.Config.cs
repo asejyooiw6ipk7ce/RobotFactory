@@ -47,6 +47,9 @@ public partial class AssemblySequence
     [Tooltip("완제품을 내려놓을 컨베이어 C 이송 위치 (선택 사항)")]
     public Transform outputConveyorPoint;
 
+    [Tooltip("부품 불량 시 폐기할 폐기함 기준점 (RejectBin, 비워두면 로봇 기준 기본 좌표 자동 적용)")]
+    public Transform rejectBin;
+
     [Header("자세 적응형 파지 (Adaptive Grasp)")]
     [Tooltip("체크 시 컨베이어 벨트 등에서 회전되어 들어오는 클로의 각도를 실시간 감지하여 최적 손목 각도(Yaw) 자동 계산")]
     public bool autoDetectClawYaw = true;
@@ -149,9 +152,20 @@ public partial class AssemblySequence
     [Range(0, 5)]
     public int maxRetryCount = 2;
 
-    [Tooltip("조립 실패 확률 (0.0 = 100% 정상 결합, 1.0 = 결합 실패로 20초 타임아웃 유발)")]
+    [Tooltip("1차 조립 시도 실패 확률 (기본값: 0.50 = 50% 실패)")]
     [Range(0f, 1f)]
-    public float assemblyFailureProbability = 0.0f;
+    public float assemblyFailureProbability = 0.50f;
+
+    [Tooltip("재시도 1회차 실패 확률 (기본값: 0.50 = 50% 실패)")]
+    [Range(0f, 1f)]
+    public float retry1FailureProbability = 0.50f;
+
+    [Tooltip("재시도 2회차 실패 확률 (기본값: 0.50 = 50% 실패)")]
+    [Range(0f, 1f)]
+    public float retry2FailureProbability = 0.50f;
+
+    [Tooltip("체크 시 1차 실패에서만 SRS 20초 타임아웃을 대기합니다 (체크 해제 시 1차 실패도 걸림 연출 후 빠르게 재시도). 재시도 회차부터는 대기 없이 즉시 걸림 연출 후 다음 단계로 진행됩니다.")]
+    public bool waitFullTimeoutOnFirstFail = false;
 
     /// <summary>
     /// 상위 제어기(ProcessController) 또는 외부에서 동적으로 조립 실패율을 주입/조회할 수 있는 프로퍼티 (FR-07)
@@ -187,6 +201,44 @@ public partial class AssemblySequence
     {
         Transform baseTr = (ik != null ? ik.transform : transform);
         return baseTr.position + baseTr.rotation * homePosition;
+    }
+
+    /// <summary>
+    /// 폐기함(RejectBin) 월드 좌표 반환 (지정되지 않은 경우 로봇 받침대 우측 기본 좌표 적용)
+    /// </summary>
+    public Vector3 GetRejectBinWorldPosition()
+    {
+        if (rejectBin != null) return rejectBin.position;
+        Transform baseTr = (ik != null ? ik.transform : transform);
+        return baseTr.position + baseTr.rotation * new Vector3(0.93f, 0.0f, -0.30f);
+    }
+
+    /// <summary>
+    /// 폐기함(RejectBin)의 실제 크기/높이를 감지하여 상단 개구부 상공(투하 지점)의 월드 좌표를 정밀 반환
+    /// </summary>
+    public Vector3 GetRejectBinDropPosition()
+    {
+        if (rejectBin != null)
+        {
+            float topY = rejectBin.position.y;
+            var colliders = rejectBin.GetComponentsInChildren<Collider>();
+            if (colliders != null && colliders.Length > 0)
+            {
+                foreach (var c in colliders)
+                {
+                    if (c.bounds.max.y > topY) topY = c.bounds.max.y;
+                }
+            }
+            else
+            {
+                topY = rejectBin.position.y + 0.50f;
+            }
+            // 상자 상단 가장자리보다 18cm 높은 상공 정중앙
+            return new Vector3(rejectBin.position.x, topY + 0.18f, rejectBin.position.z);
+        }
+
+        Transform baseTr = (ik != null ? ik.transform : transform);
+        return baseTr.position + baseTr.rotation * new Vector3(0.93f, 0.65f, -0.30f);
     }
 
     #endregion

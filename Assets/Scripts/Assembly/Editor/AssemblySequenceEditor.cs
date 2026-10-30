@@ -398,6 +398,114 @@ public class AssemblySequenceEditor : Editor
         EditorGUILayout.HelpBox($"• 양품 오차: 0°~1.5° (정상 허용 잔여 오차)\n• 불량 오차: 5°~20° (SRS FR-08 규격: 클로 축 Roll 틀어짐)\n• 최근 적용 각도: {seq.LastAngleError:F2}° (불량 여부: {(Mathf.Abs(seq.LastAngleError) >= seq.defectiveAngleRange.x ? "불량(NG)" : "정상(OK)")})", MessageType.None);
         EditorGUILayout.EndVertical();
 
+        // 6-3. 조립 실패율 및 타임아웃 / 재시도 제어 (FR-07 WBS 6.6)
+        EditorGUILayout.Space(8);
+        EditorGUILayout.BeginVertical("box");
+        GUILayout.Label("⏱️ 조립 실패 확률 & 재시도 제어 (WBS 6.6)", EditorStyles.boldLabel);
+
+        // 1차 실패 확률
+        float f0 = EditorGUILayout.Slider("1차 시도 실패 확률:", seq.assemblyFailureProbability, 0f, 1f);
+        if (Mathf.Abs(f0 - seq.assemblyFailureProbability) > 0.001f) { seq.assemblyFailureProbability = f0; EditorUtility.SetDirty(seq); }
+
+        // 재시도 1회 실패 확률
+        float f1 = EditorGUILayout.Slider("재시도 1회 실패 확률:", seq.retry1FailureProbability, 0f, 1f);
+        if (Mathf.Abs(f1 - seq.retry1FailureProbability) > 0.001f) { seq.retry1FailureProbability = f1; EditorUtility.SetDirty(seq); }
+
+        // 재시도 2회 실패 확률
+        float f2 = EditorGUILayout.Slider("재시도 2회 실패 확률:", seq.retry2FailureProbability, 0f, 1f);
+        if (Mathf.Abs(f2 - seq.retry2FailureProbability) > 0.001f) { seq.retry2FailureProbability = f2; EditorUtility.SetDirty(seq); }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("기본값 50% 통일", EditorStyles.miniButton))
+        {
+            seq.assemblyFailureProbability = 0.50f;
+            seq.retry1FailureProbability = 0.50f;
+            seq.retry2FailureProbability = 0.50f;
+            EditorUtility.SetDirty(seq);
+        }
+        if (GUILayout.Button("0% (모두 성공)", EditorStyles.miniButton))
+        {
+            seq.assemblyFailureProbability = 0f;
+            seq.retry1FailureProbability = 0f;
+            seq.retry2FailureProbability = 0f;
+            EditorUtility.SetDirty(seq);
+        }
+        if (GUILayout.Button("100% (모두 실패/폐기)", EditorStyles.miniButton))
+        {
+            seq.assemblyFailureProbability = 1.0f;
+            seq.retry1FailureProbability = 1.0f;
+            seq.retry2FailureProbability = 1.0f;
+            EditorUtility.SetDirty(seq);
+        }
+        GUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(4);
+        bool waitToggle = EditorGUILayout.Toggle("1차 실패 시 20초 대기", seq.waitFullTimeoutOnFirstFail);
+        if (waitToggle != seq.waitFullTimeoutOnFirstFail)
+        {
+            seq.waitFullTimeoutOnFirstFail = waitToggle;
+            EditorUtility.SetDirty(seq);
+        }
+        if (!seq.waitFullTimeoutOnFirstFail)
+        {
+            EditorGUILayout.HelpBox("⚡ 빠른 연출 모드: 1차 및 재시도 모두 20초 대기 없이 걸림 연출(1.2초) 직후 즉시 다음 단계로 진행됩니다.", MessageType.Info);
+        }
+
+        int newRetries = EditorGUILayout.IntSlider("최대 재시도 횟수:", seq.maxRetryCount, 0, 3);
+        if (newRetries != seq.maxRetryCount)
+        {
+            seq.maxRetryCount = newRetries;
+            EditorUtility.SetDirty(seq);
+        }
+
+        string retryInfo = seq.CurrentRetryCount > 0
+            ? $" (현재 진행 재시도: {seq.CurrentRetryCount}/{seq.maxRetryCount}회)"
+            : "";
+        EditorGUILayout.HelpBox($"• SRS FR-07 요건: 실패 시 최대 2회 재시도, 최종 실패 시 RejectBin 투하 & RobotState.Error 불량 배출{retryInfo}", MessageType.None);
+        EditorGUILayout.EndVertical();
+
+        // 6-4. 4대 확정 분기 시나리오 원클릭 검증 버튼 (FR-07 WBS 6.6)
+        EditorGUILayout.Space(6);
+        EditorGUILayout.BeginVertical("box");
+        GUILayout.Label("🧪 확정 4대 분기 시나리오 원클릭 검증 (WBS 6.6)", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        GUI.backgroundColor = new Color(0.4f, 0.85f, 0.4f);
+        if (GUILayout.Button("경우 1\n바로 성공 (0회)", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, null, null, 0));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = new Color(0.35f, 0.75f, 1.0f);
+        if (GUILayout.Button("경우 2\n재시도 1회 성공", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, null, null, 1));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = new Color(0.95f, 0.75f, 0.25f);
+        if (GUILayout.Button("경우 3\n재시도 2회 성공", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, null, null, 2));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = new Color(1.0f, 0.45f, 0.45f);
+        if (GUILayout.Button("경우 4\n최종 실패 & 폐기", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, null, null, 3));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = Color.white;
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.HelpBox(
+            "• 경우 1: 1차 정상 삽입 체결 (Idle)\n" +
+            "• 경우 2: 1차 실패 -> 소켓 앞 8cm 후퇴/손목 정렬 -> 2차 체결 완료 (Idle)\n" +
+            "• 경우 3: 1, 2차 실패 -> 소켓 앞 후퇴/정렬 -> 3차 체결 완료 (Idle)\n" +
+            "• 경우 4: 3연속 실패 -> 폐기함 이동 -> 클로 물리 투하 -> 차체 PartLoss 배출 (RobotState.Error)",
+            MessageType.None
+        );
+        EditorGUILayout.EndVertical();
+
         // 7. 메인 시퀀스 실행 버튼들 (Assemble / Reject / Refeed)
         EditorGUILayout.Space(10);
         GUILayout.Label("🚀 메인 시퀀스 실행", EditorStyles.boldLabel);
@@ -414,6 +522,14 @@ public class AssemblySequenceEditor : Editor
         if (GUILayout.Button("🔄 재투입 재조립 (Refeed)", GUILayout.Height(32)))
         {
             if (Application.isPlaying) seq.StartCoroutine(seq.Refeed());
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = Color.white;
+
+        GUI.backgroundColor = new Color(1.0f, 0.45f, 0.45f);
+        if (GUILayout.Button("⚠️ 조립 실패 & 2회 재시도 테스트 (100% Failure Test)", GUILayout.Height(30)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, null, 1.0f));
             else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
         }
         GUI.backgroundColor = Color.white;

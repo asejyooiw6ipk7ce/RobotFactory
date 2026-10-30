@@ -549,6 +549,47 @@ public partial class ArmIK : MonoBehaviour
         IsMoving = false;
     }
 
+    /// <summary>
+    /// 현재 위치를 제자리에 고정한 상태에서 손목 각도(Yaw)만 실시간으로 회전 구동합니다 (재시도 시 Wiggle / Re-align 미세 정렬 연출용).
+    /// </summary>
+    public IEnumerator RotateWristLive(float targetYawDeg, float duration = 0.2f)
+    {
+        IsMoving = true;
+        activeYaw = targetYawDeg;
+        Vector3 curPos = (tip != null) ? tip.position : transform.position;
+        float[] current = CurrentTargets();
+        float[] solution = new float[n];
+
+        bool ok;
+        if (!pointDown && useTargetLookDir)
+        {
+            ok = SolveArcContinuation(curPos, activeYaw, current, solution);
+        }
+        else
+        {
+            ok = Solve(curPos, activeYaw, current, solution);
+        }
+
+        if (ok)
+        {
+            yield return Drive(solution, Mathf.Max(0.04f, duration), true);
+        }
+        else
+        {
+            // Solve 실패 시 마지막 관절(손목)을 직접 구동
+            if (joints != null && joints.Length > 0)
+            {
+                int wristIdx = joints.Length - 1;
+                float[] targetAngles = (float[])current.Clone();
+                targetAngles[wristIdx] = targetYawDeg;
+                yield return Drive(targetAngles, Mathf.Max(0.04f, duration), true);
+            }
+        }
+
+        yield return new WaitForFixedUpdate();
+        IsMoving = false;
+    }
+
     #endregion
 
     #region 3. 머릿속 계산 - FK로 예측하고 고치기
