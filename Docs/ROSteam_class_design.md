@@ -7,7 +7,8 @@ class MonoBehaviour {
     <<Unity>>
 }
 
-%% ===== 열거형 =====
+%% ===== 열거형 (Common 폴더) =====
+namespace Common {
 class PartKind {
     <<enumeration>>
     Claw
@@ -52,8 +53,9 @@ class CounterType {
     Defective
     Shipped
 }
+}
 
-%% ===== 제어 =====
+%% ===== 제어 (Control 폴더) =====
 namespace Control {
     class ControlPanel {
         <<adapt>>
@@ -75,7 +77,7 @@ namespace Control {
     }
 }
 
-%% ===== 부품 공급과 이송 =====
+%% ===== 부품 공급과 이송 (PartSupply 폴더) =====
 namespace PartSupply {
     class PartSpawner {
         <<new>>
@@ -127,7 +129,7 @@ namespace PartSupply {
     }
 }
 
-%% ===== 검사 =====
+%% ===== 검사 (Inspection 폴더) =====
 namespace Inspection {
     class InspectStation {
         <<new>>
@@ -156,7 +158,7 @@ namespace Inspection {
     }
 }
 
-%% ===== 조립 =====
+%% ===== 조립 (Assembly 폴더) =====
 namespace Assembly {
     class AssemblySequence {
         <<adapt>>
@@ -195,8 +197,8 @@ namespace Assembly {
     }
 }
 
-%% ===== 이벤트와 대시보드 =====
-namespace EventsDashboard {
+%% ===== 이벤트 (Events 폴더) =====
+namespace Events {
     class InspectEventBus {
         <<new>>
         +Action~InspectEvent~ InspectionCompleted
@@ -227,6 +229,10 @@ namespace EventsDashboard {
         +DefectType defectType
         +float timestamp
     }
+}
+
+%% ===== 대시보드 (Dashboard 폴더) =====
+namespace Dashboard {
     class StatsTracker {
         <<new>>
         +Nullable~double~ FinalYieldRate
@@ -252,9 +258,14 @@ namespace EventsDashboard {
     }
     class Dashboard {
         <<new>>
-        +StatsTracker stats
-        +AlarmMonitor alarms
-        +RobotStatusTracker robots
+        -UIDocument document
+        -float alertThresholdPercent
+        -int recentCount
+        -int minInspectionsForAlert
+        -StatsTracker stats
+        -AlarmMonitor alarms
+        -RobotStatusTracker robots
+        -BindUI() void
         +Refresh() void
     }
 }
@@ -352,7 +363,8 @@ note for InspectEventBus "TODO: 검사 외 이벤트(출하·폐기)도 담게 �
 note for InspectEventBus "CounterAdded(CounterType), RobotStateChanged(int 로봇번호, RobotState)"
 note for AssemblySequence "TODO: 패키지의 EvaluateResult (InspectClass 반환)를 어느 쪽에 둘지 미정"
 note for AssemblySequence "TODO: Assemble은 currentBase.socket 위치·접근 방향으로 수평 삽입. 삽입 경로 구현 방식 미정"
-note for Dashboard "TODO: UI 바인딩 방식(TMP 직접 참조 또는 이벤트 구독) 미정"
+note for Dashboard "구현: UIDocument의 root.Q<Label>(이름)으로 라벨을 찾고, 이벤트를 구독해 값을 갱신. 기준값은 인스펙터에서 설정"
+note for Dashboard "UI 파일: Assets/UI/Dashboard/Dashboard.uxml (화면 구조), Dashboard.uss (스타일)"
 note for StatsTracker "구현: 순수 C# 클래스 (MonoBehaviour 아님). 처리 개수는 CounterType 사전으로 셈"
 note for AlarmMonitor "구현: 순수 C# 클래스 (MonoBehaviour 아님). 스테이션별 최근 불량률로 알림 판정"
 note for RobotStatusTracker "구현: 순수 C# 클래스 (MonoBehaviour 아님). 로봇2만 Assembling 상태를 가질 수 있음"
@@ -431,6 +443,7 @@ style ProcessCounters fill:#d3e3f7,stroke:#2f5d9e
 | `PartExitEvent` | new | 없음 | — | 부품이 공정을 떠날 때(출하, 불량 이동, 폐기) 발생하는 이벤트 |
 | `ProcessCounters` | new | 없음 | — | 처리 개수 증가의 진입점. 다른 팀원이 `ProcessCounters.Add(CounterType)`으로 한 줄씩 올림 |
 | `StatsTracker`, `AlarmMonitor`, `RobotStatusTracker`, `Dashboard` | new | 없음 | — | 처리 개수 집계(`CounterType`), 최종 양품률·스테이션 불량률, 이상 알림, 로봇 상태, 화면 표시 |
+| `Dashboard.uxml`, `Dashboard.uss` | new | 없음 | `UI/Dashboard/` | 화면 구조(양품률·불량률·처리 개수 카드, 로봇 상태 뱃지, 알림 목록)와 스타일(다크 테마, 알림 빨간 테두리, Pretendard) |
 | `InspectResult`, `StationId`, `RobotState`, `ExitReason`, `CounterType` (열거형) | new | 없음 | — | 새로 정의한 열거형 |
 
 ### 원본에 있지만 쓰지 않는 것

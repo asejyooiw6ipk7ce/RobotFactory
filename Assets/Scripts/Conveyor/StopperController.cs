@@ -21,13 +21,14 @@ public class StopperController : MonoBehaviour
         }
         else
         {
-            Debug.Log("[Stopper] ConveyorController 찾기 성공");
+            Debug.Log("[Stopper] ConveyorController 찾기 성공 god");
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log($"[Stopper] OnTriggerEnter 실행: {other.name}");
+        //Debug.Log($"[Stopper] OnTriggerEnter 실행: {other.name}");
+        Debug.Log($"[Stopper] OnTriggerEnter 실행: {other.name}", this);
 
         if (conveyorController == null)
         {
