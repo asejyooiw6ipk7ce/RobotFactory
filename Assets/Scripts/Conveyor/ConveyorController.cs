@@ -9,17 +9,22 @@ public class ConveyorController : MonoBehaviour
     [Header("속도 설정")]
     public float normalSpeed = 2f;
 
-    private Renderer targetRenderer;
+    // private Renderer targetRenderer; 
+    private Renderer[] targetRenderers;
     private MaterialPropertyBlock propertyBlock;
 
-    private readonly int speedID = Shader.PropertyToID("_Spped");
+    //private readonly int speedID = Shader.PropertyToID("_Spped");
+    private readonly int speedIDRotor = Shader.PropertyToID("_Spped");
+    private readonly int speedIDBaseColor = Shader.PropertyToID("_Speed");
 
     private void Awake()
     {
         // 현재 오브젝트의 Renderer 가져오기
-        targetRenderer = GetComponent<Renderer>();
+        // targetRenderer = GetComponent<Renderer>();
+        targetRenderers = GetComponentsInChildren<Renderer>();
 
-        if (targetRenderer == null)
+        // if (targetRenderer == null)
+        if (targetRenderers.Length == 0)
         {
             Debug.LogError("Renderer를 찾을 수 없습니다.", this);
             return;
@@ -36,15 +41,27 @@ public class ConveyorController : MonoBehaviour
     // 셰이더에 컨베이어 속도 적용
     public void ApplyConveyorSpeed()
     {
-        if (targetRenderer == null || propertyBlock == null)
-            return;
+        // if (targetRenderer == null || propertyBlock == null)
+        //     return;
 
-        targetRenderer.GetPropertyBlock(propertyBlock);
+        // targetRenderer.GetPropertyBlock(propertyBlock);
+
+        // float speed = stopConveyor ? 0f : normalSpeed;
+        // propertyBlock.SetFloat(speedID, speed);
+
+        // targetRenderer.SetPropertyBlock(propertyBlock);
+
+        if (propertyBlock == null) return;
 
         float speed = stopConveyor ? 0f : normalSpeed;
-        propertyBlock.SetFloat(speedID, speed);
 
-        targetRenderer.SetPropertyBlock(propertyBlock);
+        foreach (Renderer r in targetRenderers)
+        {
+            r.GetPropertyBlock(propertyBlock);
+            propertyBlock.SetFloat(speedIDRotor, speed);
+            propertyBlock.SetFloat(speedIDBaseColor, speed);
+            r.SetPropertyBlock(propertyBlock);
+        }
     }
 
     // StopperController에서 호출할 정지 함수
