@@ -114,7 +114,7 @@ public partial class AssemblySequence
             ik.useTargetLookDir = false;
             Vector3 highSafeTransit = new Vector3(pickApproach.x, 0.95f, pickApproach.z);
             yield return ik.MoveTo(highSafeTransit, null);
-            yield return ik.MoveTo(pickApproach, targetYaw);
+            yield return ik.MoveLinearSmooth(pickApproach, 0.40f, targetYaw, false);
         }
 
         SetState(RobotState.Moving, "1단계 완료: 클로 상공 접근 성공");
@@ -151,7 +151,7 @@ public partial class AssemblySequence
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw);
+            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw, false);
         }
         if (gripper != null) yield return gripper.Close();
 
@@ -317,7 +317,7 @@ public partial class AssemblySequence
             // 3. 홈 대기 자세로 복귀 (초기 관절 각도로 안전 복귀)
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.ReturnToHomeJoints(1.0f);
+            yield return ik.ReturnToHomeJoints(2.2f);
         }
 
         SetState(RobotState.Idle, "6단계 완료: 전체 복귀 완료");

@@ -245,7 +245,11 @@ public partial class AssemblySequence : MonoBehaviour
         if (ik == null) ik = GetComponent<ArmIK>();
         if (ik == null) ik = GetComponentInChildren<ArmIK>();
         if (ik == null) ik = FindAnyObjectByType<ArmIK>();
-        if (ik != null) ik.AutoAssign();
+        if (ik != null)
+        {
+            ik.AutoAssign();
+            if (ik.jointSpeed < 100f) ik.jointSpeed = 110f;
+        }
 
         // 3. GripperController 자동 연결
         if (gripper == null) gripper = GetComponent<GripperController>();
@@ -861,8 +865,10 @@ public partial class AssemblySequence : MonoBehaviour
         IsBusy = true;
         LastAssemblyOk = false;
         LastAngleError = 0f;
+        float sequenceStartTime = Time.time;
+        LastElapsedTime = 0f;
         SetState(RobotState.Moving, "0. 조립 시퀀스 준비 중...");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
 
         AutoFindReferences();
         ApplyGripperCloseTarget();
@@ -895,7 +901,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 1. 그리퍼 초기 열기 (대기 상태)
         SetState(RobotState.Working, "1. 그리퍼 개방 및 클로 감지");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
         if (gripper != null) yield return gripper.Open();
 
         if (clawPart == null)
@@ -915,24 +921,24 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 2. 상공 경유하여 클로 상공으로 접근 (상공 고도 0.95m 경유로 팔꿈치를 위(Elbow-Up)로 확실히 유지)
         SetState(RobotState.Moving, $"2. 클로 상공으로 접근 (목표 손목 {targetYaw:F1}°)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
         if (ik != null)
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
             Vector3 highSafeTransit = new Vector3(pickApproach.x, 0.95f, pickApproach.z);
             yield return ik.MoveTo(highSafeTransit, null);
-            yield return ik.MoveTo(pickApproach, targetYaw);
+            yield return ik.MoveLinearSmooth(pickApproach, 0.40f, targetYaw, false);
         }
 
         // 3. 파지 하강 (Descend) & 그리퍼 닫기 (Grasp)
         SetState(RobotState.Working, "3. 하강 및 그리퍼 파지 (Grasp)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
         if (ik != null)
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw);
+            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw, false);
         }
 
         if (gripper != null)
@@ -945,7 +951,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 4. 안전 상공 리프팅 (Lift)
         SetState(RobotState.Working, "4. 클로 들어올리기 (Lift)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
         AttachClawToGripper();
 
         GetSlotInfo(out Vector3 slotCenter, out Vector3 insertApproach, out Vector3 insertDir);
@@ -964,7 +970,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 5. [4.1 & 4.2] TestTarget 소켓 앞 수평 정렬 (Horizontal Align, FR-07)
         SetState(RobotState.Moving, "5. 그리퍼 수평 전환(4.1) 후 shoulder_link 회전(4.2) (소켓 앞 정렬)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
 
         if (ik != null)
         {
@@ -990,7 +996,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 6. [4.3] Socket으로 수평 삽입 (Insert, FR-07)
         SetState(RobotState.Assembling, "6. Socket으로 수평 삽입 (Insert)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
         if (ik != null)
         {
             Vector3 tipInsertGoal = GetTipInsertGoal(slotCenter, insertDir);
@@ -1004,7 +1010,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         // 7. 스냅 고정 및 결합 틀어짐 적용 (FR-07, FR-08)
         SetState(RobotState.Assembling, "7. 스냅 결합 및 결합 오차 적용 (FR-08)");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
 
         // 결합 틀어짐 확률 계산 (FR-08)
         // 결합 틀어짐 각도 결정 (직접 지정된 오차 -> 오버라이드 확률 -> 기본 DefectProbability 순)
@@ -1025,14 +1031,17 @@ public partial class AssemblySequence : MonoBehaviour
 
         LastAssemblyOk = true; // ★ 7단계 스냅 결합 완료 즉시 조립 성공 판정 (20초 이내 결합 요건 만족)
 
+        float snapElapsed = Time.time - sequenceStartTime;
+        LastElapsedTime = snapElapsed;
+
         DefectType finalDefect = isAngleDefect ? DefectType.AngleError : DefectType.None;
-        Debug.Log($"[AssemblySequence] 결합 완료 | 틀어짐 각도: {angleError:F2}° (불량 유형: {finalDefect})");
+        Debug.Log($"[AssemblySequence] ⭐ [7단계 결합 완료] 결합 소요시간: {snapElapsed:F2}초 (기준: 20초 이내, 목표: 14~16초) | 틀어짐 각도: {angleError:F2}° (불량 유형: {finalDefect})");
 
         yield return new WaitForSeconds(0.15f);
 
         // 8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴
         SetState(RobotState.Working, "8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴");
-        Debug.Log($"[AssemblySequence] {Status}");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - sequenceStartTime:F2}초) {Status}");
 
         if (gripper != null)
         {
@@ -1054,12 +1063,13 @@ public partial class AssemblySequence : MonoBehaviour
             // 대기 자세(Home)로 초기 관절 각도로 안전 복귀
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.ReturnToHomeJoints(1.0f);
+            yield return ik.ReturnToHomeJoints(2.2f);
         }
 
         LastAssemblyOk = true;
-        SetState(RobotState.Idle, $"조립 완료 (오차: {angleError:F1}°, 불량: {isAngleDefect})");
-        Debug.Log($"[AssemblySequence] {Status}");
+        float totalElapsed = Time.time - sequenceStartTime;
+        SetState(RobotState.Idle, $"조립 완료 (결합: {snapElapsed:F2}초, 전체: {totalElapsed:F2}초, 오차: {angleError:F1}°)");
+        Debug.Log($"[AssemblySequence] 🏁 [시퀀스 전체 완료] 총 소요: {totalElapsed:F2}초 (결합 시점: {snapElapsed:F2}초) - {Status}");
         IsBusy = false;
     }
 

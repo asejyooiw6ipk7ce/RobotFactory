@@ -33,7 +33,7 @@ public partial class ArmIK : MonoBehaviour
     public float orientationWeight = 0.2f;
 
     [Header("이동")]
-    public float jointSpeed = 60f;         // 관절 이동 속도 (도/초)
+    public float jointSpeed = 110f;         // 관절 이동 속도 (도/초)
     public float minMoveTime = 0.3f;
     public float linearStep = 0.01f;        // 직선 경로를 몇 m 간격으로 나눌지
     public int correctionPasses = 3;        // 도착 후 처짐 보정 횟수
@@ -474,7 +474,7 @@ public partial class ArmIK : MonoBehaviour
     //    1cm 간격 직선 경유점마다 어깨·팔꿈치·손목 굽힘 각도를 연속 계산하고
     //    단일 물리 루프에서 부드러운 가감속(SmoothStep)으로 정밀 보간 주행합니다.
     // =========================================================================
-    public IEnumerator MoveLinearSmooth(Vector3 goal, float speed, float? yawDeg = null)
+    public IEnumerator MoveLinearSmooth(Vector3 goal, float speed, float? yawDeg = null, bool settleAndCorrect = true)
     {
         IsMoving = true;
         activeYaw = yawDeg;
@@ -540,8 +540,11 @@ public partial class ArmIK : MonoBehaviour
             }
         }
 
-        yield return Settle();
-        yield return Correct(goal);
+        if (settleAndCorrect)
+        {
+            yield return Settle();
+            yield return Correct(goal);
+        }
 
         IsMoving = false;
     }

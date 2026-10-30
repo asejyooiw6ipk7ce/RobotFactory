@@ -88,10 +88,10 @@ public partial class AssemblySequence
     public float socketMountOffset = 0.114f;
 
     [Tooltip("4.2 소켓 앞 대기 지점까지 수평 직선 이동 속도 (m/s)")]
-    public float alignLinearSpeed = 0.35f;
+    public float alignLinearSpeed = 0.55f;
 
     [Tooltip("수평 삽입 전진 속도 (m/s)")]
-    public float insertSpeed = 0.10f;
+    public float insertSpeed = 0.075f;
 
     [Tooltip("6단계 분리 후 상공 수직 상승 속도 (m/s, 기본 0.25m/s - SmoothStep 가감속 적용)")]
     public float retractLiftSpeed = 0.35f;

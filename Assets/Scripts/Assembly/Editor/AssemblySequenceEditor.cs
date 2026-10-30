@@ -421,6 +421,11 @@ public class AssemblySequenceEditor : Editor
         // 상태 표시
         EditorGUILayout.Space(6);
         EditorGUILayout.HelpBox($"현재 상태: {seq.Status}", MessageType.None);
+        if (seq.LastElapsedTime > 0f)
+        {
+            MessageType msgType = seq.LastElapsedTime <= seq.assemblyTimeoutSeconds ? MessageType.Info : MessageType.Warning;
+            EditorGUILayout.HelpBox($"⏱️ 마지막 결합 소요시간: {seq.LastElapsedTime:F2}초 (제한: {seq.assemblyTimeoutSeconds:F0}초 이내 / 목표: 14~16초)", msgType);
+        }
     }
 
     private void DrawTargetReachDiagnostic(ArmIK ik, string targetName, Vector3? pos)
