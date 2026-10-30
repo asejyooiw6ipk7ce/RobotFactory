@@ -20,6 +20,10 @@ public partial class AssemblySequence : MonoBehaviour
 {
     #region 상태 프로퍼티
 
+    [Header("스테이션 식별 (UML)")]
+    [Tooltip("현재 시퀀스가 속한 스테이션 식별자")]
+    public StationId stationId = StationId.Station2;
+
     private bool isStepBusy = false;
     private bool isContinuousBusy = false;
     public bool IsBusy
