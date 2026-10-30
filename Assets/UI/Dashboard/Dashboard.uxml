@@ -1,0 +1,72 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <Style src="project://database/Assets/UI/Dashboard/Dashboard.uss" />
+    <ui:VisualElement name="dashboard" class="dash">
+
+        <!-- KPI: 최종 양품률 -->
+        <ui:VisualElement class="card">
+            <ui:Label text="KPI" class="card-caption" />
+            <ui:Label text="최종 양품률" class="card-title" />
+            <ui:Label name="final-yield" text="-" class="kpi-value" />
+        </ui:VisualElement>
+
+        <!-- 스테이션 불량률 -->
+        <ui:VisualElement class="row">
+            <ui:VisualElement name="station1-card" class="card card-half card-station">
+                <ui:Label text="스테이션 1 불량률" class="card-title" />
+                <ui:Label name="station1-rate" text="-" class="value" />
+            </ui:VisualElement>
+            <ui:VisualElement name="station2-card" class="card card-half card-station">
+                <ui:Label text="스테이션 2 불량률" class="card-title" />
+                <ui:Label name="station2-rate" text="-" class="value" />
+            </ui:VisualElement>
+            <ui:VisualElement name="station3-card" class="card card-half card-station">
+                <ui:Label text="스테이션 3 불량률" class="card-title" />
+                <ui:Label name="station3-rate" text="-" class="value" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 처리 개수 -->
+        <ui:VisualElement class="row">
+            <ui:VisualElement class="card card-third">
+                <ui:Label text="투입" class="card-title" />
+                <ui:Label name="count-input" text="0" class="value" />
+            </ui:VisualElement>
+            <ui:VisualElement class="card card-third">
+                <ui:Label text="검사 완료" class="card-title" />
+                <ui:Label name="count-inspected" text="0" class="value" />
+            </ui:VisualElement>
+            <ui:VisualElement class="card card-third tone-bad">
+                <ui:Label text="폐기" class="card-title" />
+                <ui:Label name="count-discarded" text="0" class="value" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="row">
+            <ui:VisualElement class="card card-half tone-bad">
+                <ui:Label text="불량 컨베이어 이동" class="card-title" />
+                <ui:Label name="count-defect" text="0" class="value" />
+            </ui:VisualElement>
+            <ui:VisualElement class="card card-half tone-good">
+                <ui:Label text="출하" class="card-title" />
+                <ui:Label name="count-shipped" text="0" class="value" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- 로봇 상태 -->
+        <ui:VisualElement class="robot-row">
+            <ui:Label text="로봇 1" class="robot-name" />
+            <ui:Label name="robot1-state" text="대기" class="badge state-idle" />
+        </ui:VisualElement>
+        <ui:VisualElement class="robot-row">
+            <ui:Label text="로봇 2" class="robot-name" />
+            <ui:Label name="robot2-state" text="대기" class="badge state-idle" />
+        </ui:VisualElement>
+
+        <!-- 이상 알림 -->
+        <ui:VisualElement class="alert-box">
+            <ui:Label text="알림" class="alert-title" />
+            <ui:VisualElement name="alert-list" class="alert-list" />
+            <ui:Label name="alert-empty" text="알림 없음" class="alert-empty" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
