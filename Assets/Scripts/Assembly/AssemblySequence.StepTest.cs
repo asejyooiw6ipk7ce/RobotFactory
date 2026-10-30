@@ -1,5 +1,8 @@
 using System.Collections;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public partial class AssemblySequence
 {
@@ -342,7 +345,75 @@ public partial class AssemblySequence
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(rejectBin.position + Vector3.up * rejectDropHeight, rejectBinRadius);
         }
+
+        // 공정 배치 위치 및 로봇 작업 반경 도달 가이드선
+        if (showReachabilityGizmos && ik != null)
+        {
+#if UNITY_EDITOR
+            // AssemblySequence 선택 시에도 로봇 360도 작업 반경 원형 시각 표시
+            if (ik.showWorkRadius)
+            {
+                ik.DrawWorkEnvelopeGizmo();
+            }
+
+            Vector3 center = ik.GetWorkCenter();
+
+            // 1. 부품1 픽업점
+            Vector3 pickPos = partStopPoint != null ? partStopPoint.position : (clawPart != null ? GetPickPosition() : Vector3.zero);
+            if (pickPos != Vector3.zero) DrawReachGuideLine(center, pickPos, "부품1 (Pick)");
+
+            // 2. 부품2 소켓 조립점
+            if (slotCenter != Vector3.zero) DrawReachGuideLine(center, slotCenter, "부품2 (Socket)");
+
+            // 3. 폐기함
+            if (rejectBin != null) DrawReachGuideLine(center, rejectBin.position, "폐기함 (Reject)");
+
+            // 4. 완제품 배출 컨베이어
+            if (outputConveyorPoint != null) DrawReachGuideLine(center, outputConveyorPoint.position, "완제품 (Conveyor)");
+#endif
+        }
     }
+
+#if UNITY_EDITOR
+    private void DrawReachGuideLine(Vector3 center, Vector3 targetPos, string label)
+    {
+        Vector3 floorTarget = new Vector3(targetPos.x, center.y, targetPos.z);
+        int reachCode = ik.EvaluateReach(targetPos, out float hDist, out _);
+
+        Color col;
+        string status;
+        switch (reachCode)
+        {
+            case 0:
+                col = new Color(0.15f, 0.90f, 0.40f, 0.85f);
+                status = "OK";
+                break;
+            case 1:
+                col = new Color(1.0f, 0.85f, 0.20f, 0.85f);
+                status = "한계 근접";
+                break;
+            case -1:
+                col = new Color(1.0f, 0.50f, 0.15f, 0.85f);
+                status = "사각지대";
+                break;
+            default:
+                col = new Color(1.0f, 0.20f, 0.20f, 0.95f);
+                status = "도달 불가!";
+                break;
+        }
+
+        Handles.color = col;
+        Handles.DrawDottedLine(center, floorTarget, 2.5f);
+        Handles.DrawLine(floorTarget, targetPos);
+        Handles.DrawWireDisc(floorTarget, Vector3.up, 0.035f);
+
+        GUIStyle style = new GUIStyle();
+        style.fontSize = 10;
+        style.fontStyle = FontStyle.Bold;
+        style.normal.textColor = col;
+        Handles.Label(floorTarget + Vector3.up * 0.02f, $"{label}: {hDist:F2}m [{status}]", style);
+    }
+#endif
 
     #endregion
 }

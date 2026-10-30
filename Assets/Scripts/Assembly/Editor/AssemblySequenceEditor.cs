@@ -157,6 +157,95 @@ public class AssemblySequenceEditor : Editor
         }
         EditorGUILayout.EndVertical();
 
+        // 5-2. 작업 반경 및 씬 배치 진단 패널
+        EditorGUILayout.Space(8);
+        EditorGUILayout.BeginVertical("box");
+        GUILayout.Label("🌐 로봇 작업 반경 및 공정 배치 진단 (Work Envelope)", EditorStyles.boldLabel);
+
+        if (seq.ik != null)
+        {
+            // 작업 반경 원형 표시 On/Off 토글 버튼
+            EditorGUILayout.BeginHorizontal();
+            GUI.backgroundColor = seq.ik.showWorkRadius ? new Color(0.3f, 0.9f, 0.5f) : new Color(0.85f, 0.85f, 0.85f);
+            string toggleBtnText = seq.ik.showWorkRadius ? "🟢 360° 작업 반경 표시 [ON]" : "⚪ 360° 작업 반경 표시 [OFF]";
+            if (GUILayout.Button(toggleBtnText, GUILayout.Height(28)))
+            {
+                seq.ik.showWorkRadius = !seq.ik.showWorkRadius;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            GUI.backgroundColor = Color.white;
+
+            bool newOnlySelected = EditorGUILayout.ToggleLeft("선택 시만 표시", seq.ik.showOnlyWhenSelected, GUILayout.Width(100));
+            if (newOnlySelected != seq.ik.showOnlyWhenSelected)
+            {
+                seq.ik.showOnlyWhenSelected = newOnlySelected;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            // 2D / 3D 뷰 모드 전환 버튼
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("시각화 차원:", GUILayout.Width(80));
+            ArmIK.EnvelopeViewMode curMode = seq.ik.viewMode;
+            if (GUILayout.Button("2D 바닥 평면", curMode == ArmIK.EnvelopeViewMode.Flat2D ? EditorStyles.miniButtonMid : EditorStyles.miniButton, GUILayout.Height(22)))
+            {
+                seq.ik.viewMode = ArmIK.EnvelopeViewMode.Flat2D;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            if (GUILayout.Button("3D 상공 돔", curMode == ArmIK.EnvelopeViewMode.Dome3D ? EditorStyles.miniButtonMid : EditorStyles.miniButton, GUILayout.Height(22)))
+            {
+                seq.ik.viewMode = ArmIK.EnvelopeViewMode.Dome3D;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            if (GUILayout.Button("3D 전체 구체", curMode == ArmIK.EnvelopeViewMode.Sphere3D ? EditorStyles.miniButtonMid : EditorStyles.miniButton, GUILayout.Height(22)))
+            {
+                seq.ik.viewMode = ArmIK.EnvelopeViewMode.Sphere3D;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            if (GUILayout.Button("2D+3D 동시", curMode == ArmIK.EnvelopeViewMode.Both ? EditorStyles.miniButtonMid : EditorStyles.miniButton, GUILayout.Height(22)))
+            {
+                seq.ik.viewMode = ArmIK.EnvelopeViewMode.Both;
+                EditorUtility.SetDirty(seq.ik);
+                SceneView.RepaintAll();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            float newMax = EditorGUILayout.Slider("최대 도달 반경 (m):", seq.ik.maxReachRadius, 0.8f, 2.0f);
+            if (Mathf.Abs(newMax - seq.ik.maxReachRadius) > 0.005f) { seq.ik.maxReachRadius = newMax; EditorUtility.SetDirty(seq.ik); }
+            float newRec = EditorGUILayout.Slider("권장 작업 반경 (m):", seq.ik.recommendedRadius, 0.5f, 1.8f);
+            if (Mathf.Abs(newRec - seq.ik.recommendedRadius) > 0.005f) { seq.ik.recommendedRadius = newRec; EditorUtility.SetDirty(seq.ik); }
+
+            // 공정 기준점 실시간 배치 진단
+            EditorGUILayout.Space(4);
+            GUILayout.Label("📍 주요 공정 배치 위치 도달 진단:", EditorStyles.miniBoldLabel);
+
+            DrawTargetReachDiagnostic(seq.ik, "부품1 픽업 (Claw)", seq.partStopPoint != null ? seq.partStopPoint.position : (seq.clawPart != null ? seq.GetPickPosition() : (Vector3?)null));
+            seq.GetSlotInfo(out Vector3 sc, out _, out _);
+            DrawTargetReachDiagnostic(seq.ik, "부품2 소켓 (Socket)", sc != Vector3.zero ? (Vector3?)sc : null);
+            DrawTargetReachDiagnostic(seq.ik, "불량 폐기함 (RejectBin)", seq.rejectBin != null ? (Vector3?)seq.rejectBin.position : null);
+            if (seq.outputConveyorPoint != null)
+                DrawTargetReachDiagnostic(seq.ik, "완제품 배출 (Conveyor C)", seq.outputConveyorPoint.position);
+
+            EditorGUILayout.Space(4);
+            bool newReachGizmo = EditorGUILayout.Toggle("배치 가이드 연결선 표시", seq.showReachabilityGizmos);
+            if (newReachGizmo != seq.showReachabilityGizmos)
+            {
+                seq.showReachabilityGizmos = newReachGizmo;
+                EditorUtility.SetDirty(seq);
+                SceneView.RepaintAll();
+            }
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("로봇 ArmIK 컴포넌트가 연결되지 않아 작업 반경을 표시할 수 없습니다.\n위의 '참조 자동 연결' 버튼을 눌러주세요.", MessageType.Warning);
+        }
+        EditorGUILayout.EndVertical();
+
         // 6. 단계별 검증 및 연속 실행
         EditorGUILayout.Space(8);
         GUILayout.Label("📋 단계별 검증 및 연속 실행 (Step-by-Step)", EditorStyles.boldLabel);
@@ -289,6 +378,43 @@ public class AssemblySequenceEditor : Editor
         // 상태 표시
         EditorGUILayout.Space(6);
         EditorGUILayout.HelpBox($"현재 상태: {seq.Status}", MessageType.None);
+    }
+
+    private void DrawTargetReachDiagnostic(ArmIK ik, string targetName, Vector3? pos)
+    {
+        if (!pos.HasValue)
+        {
+            EditorGUILayout.LabelField($" - {targetName}:", "(미지정 / 씬 검색 필요)", EditorStyles.miniLabel);
+            return;
+        }
+
+        int code = ik.EvaluateReach(pos.Value, out float hDist, out _);
+        string statusStr;
+        Color col;
+        switch (code)
+        {
+            case 0:
+                statusStr = "🟢 안전 권장 범위 (OK)";
+                col = new Color(0.1f, 0.6f, 0.2f);
+                break;
+            case 1:
+                statusStr = "🟡 한계 근접 (Marginal)";
+                col = new Color(0.7f, 0.5f, 0.1f);
+                break;
+            case -1:
+                statusStr = "🟠 중심 사각지대 (너무 가까움)";
+                col = new Color(0.8f, 0.4f, 0.1f);
+                break;
+            default:
+                statusStr = "🔴 도달 불가 (Out of Reach!)";
+                col = new Color(0.8f, 0.1f, 0.1f);
+                break;
+        }
+
+        GUIStyle s = new GUIStyle(EditorStyles.miniLabel);
+        s.normal.textColor = col;
+        s.fontStyle = FontStyle.Bold;
+        EditorGUILayout.LabelField($" - {targetName}: {hDist:F2}m", statusStr, s);
     }
 }
 #endif

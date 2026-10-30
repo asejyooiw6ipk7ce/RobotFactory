@@ -138,6 +138,10 @@ public partial class AssemblySequence
     [Tooltip("폐기함 반경 (m)")]
     public float rejectBinRadius = 0.08f;
 
+    [Header("작업 반경 시각화 및 배치 검증")]
+    [Tooltip("로봇 작업 반경 대비 주요 공정 위치(클로, 소켓, 폐기함, 컨베이어) 도달 가능 상태 가이드선 표시")]
+    public bool showReachabilityGizmos = true;
+
     [Header("대기 자세 (Home, 로봇 베이스 기준 로컬 오프셋)")]
     public Vector3 homePosition = new Vector3(0f, 0.40f, 0.35f);
     public float homeJointSpeed = 90f;
