@@ -93,6 +93,12 @@ public partial class AssemblySequence
         AutoFindReferences();
         ApplyGripperCloseTarget();
 
+        // [새 공정 시작 안전 복원] 클로가 이전 조립 잔재(차체/소켓 등)에 결합되어 있다면 컨베이어 초기 위치로 복원
+        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        {
+            ResetClawToInitialState();
+        }
+
         if (gripper != null) yield return gripper.Open();
         if (clawPart == null) { IsBusy = false; yield break; }
 
@@ -129,6 +135,12 @@ public partial class AssemblySequence
         Debug.Log($"[AssemblySequence] {Status}");
         AutoFindReferences();
         ApplyGripperCloseTarget();
+
+        // [새 공정 시작 안전 복원] 2단계 단독 실행 시 클로가 이전 조립 잔재(차체 등)에 남아있다면 복원
+        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        {
+            ResetClawToInitialState();
+        }
 
         if (clawPart == null) { IsBusy = false; yield break; }
         Vector3 pickPos = GetPickPosition();
@@ -218,9 +230,16 @@ public partial class AssemblySequence
             yield return ik.MoveTo(horizontalTurnPos, alignWristYaw);
             yield return new WaitForSeconds(0.2f);
 
-            // [4.2] 그리퍼가 소켓(<-X)을 똑바로 바라본 채 베이스 회전 각도에 맞춰 팔을 굽혀주며 소켓 앞 10cm 대기 지점(insertApproach)까지 리니어(직선) 이동
-            Debug.Log($"[AssemblySequence] 4.2: 팔 굽힘 연동 수평 리니어 이동 -> 소켓 앞 대기 위치({insertApproach})");
-            yield return ik.MoveLinearSmooth(insertApproach, alignLinearSpeed, alignWristYaw);
+            // [4.2] 그리퍼가 소켓(<-X)을 똑바로 바라본 채 베이스 회전 각도에 맞춰 팔을 굽혀주며 소켓 앞 10cm 대기 지점(insertApproach)까지 이동 (사각지대 관통 시 원호 우회)
+            Debug.Log($"[AssemblySequence] 4.2: 팔 굽힘 연동 수평 이동 -> 소켓 앞 대기 위치({insertApproach})");
+            if (DoesSegmentCrossDeadzone(horizontalTurnPos, insertApproach))
+            {
+                yield return ik.MoveTo(insertApproach, alignWristYaw);
+            }
+            else
+            {
+                yield return ik.MoveLinearSmooth(insertApproach, alignLinearSpeed, alignWristYaw);
+            }
             yield return new WaitForSeconds(0.2f);
         }
 

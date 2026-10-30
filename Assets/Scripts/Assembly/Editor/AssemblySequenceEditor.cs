@@ -94,12 +94,36 @@ public class AssemblySequenceEditor : Editor
         EditorGUILayout.Space(8);
         EditorGUILayout.BeginVertical("box");
         GUILayout.Label("📐 4단계 소켓 수직 정렬 설정", EditorStyles.boldLabel);
-        seq.customInsertDir = EditorGUILayout.Vector3Field("소켓 삽입 방향 (insertDir):", seq.customInsertDir);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("⬅ 왼쪽 (-X, 화살표)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.left; EditorUtility.SetDirty(seq); }
-        if (GUILayout.Button("➡ 오른쪽 (+X)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.right; EditorUtility.SetDirty(seq); }
-        if (GUILayout.Button("⬆ 전방 (+Z)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.forward; EditorUtility.SetDirty(seq); }
-        GUILayout.EndHorizontal();
+
+        bool newAutoDetect = EditorGUILayout.Toggle("차체 회전 기준 삽입 방향 자동 추적", seq.autoDetectInsertDir);
+        if (newAutoDetect != seq.autoDetectInsertDir)
+        {
+            seq.autoDetectInsertDir = newAutoDetect;
+            EditorUtility.SetDirty(seq);
+            SceneView.RepaintAll();
+        }
+
+        if (seq.autoDetectInsertDir)
+        {
+            seq.GetSlotInfo(out _, out _, out Vector3 liveDir);
+            EditorGUILayout.LabelField("실시간 감지 삽입 방향 (insertDir):", $"{liveDir}");
+        }
+        else
+        {
+            Vector3 newInsertDir = EditorGUILayout.Vector3Field("소켓 삽입 방향 (insertDir):", seq.customInsertDir);
+            if (newInsertDir != seq.customInsertDir)
+            {
+                seq.customInsertDir = newInsertDir;
+                EditorUtility.SetDirty(seq);
+                SceneView.RepaintAll();
+            }
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("⬅ 왼쪽 (-X, 화살표)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.left; EditorUtility.SetDirty(seq); SceneView.RepaintAll(); }
+            if (GUILayout.Button("➡ 오른쪽 (+X)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.right; EditorUtility.SetDirty(seq); SceneView.RepaintAll(); }
+            if (GUILayout.Button("⬆ 전방 (+Z)", GUILayout.Height(22))) { seq.customInsertDir = Vector3.forward; EditorUtility.SetDirty(seq); SceneView.RepaintAll(); }
+            GUILayout.EndHorizontal();
+        }
+
         float newAlignYaw = EditorGUILayout.Slider("소켓 정렬 손목 각도 (alignWristYaw):", seq.alignWristYaw, 0f, 360f);
         if (Mathf.Abs(newAlignYaw - seq.alignWristYaw) > 0.1f)
         {

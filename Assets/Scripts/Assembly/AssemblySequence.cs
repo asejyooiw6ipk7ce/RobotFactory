@@ -408,23 +408,25 @@ public partial class AssemblySequence : MonoBehaviour
 
     /// <summary>
     /// 클로 허브(grap_platfrom_01)의 실제 월드 위치를 기반으로 최적 파지 높이 계산
+    /// (순수 좌표 산출 함수 - 클로의 부모나 트랜스폼을 임의로 변경/리셋하지 않음)
     /// </summary>
     public Vector3 GetPickPosition()
     {
+        // 클로가 현재 그리퍼에 파지 중이거나 이미 차체/소켓에 결합된 상태라면, 컨베이어 초기 픽업 기준점 반환
+        if (IsClawHeldByGripper() || (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent))
+        {
+            if (initialClawRecorded)
+            {
+                float fallbackY = Mathf.Max(minSafeFloorY, initialClawPosition.y + pickHeightOffset);
+                return new Vector3(initialClawPosition.x, fallbackY, initialClawPosition.z);
+            }
+            if (partStopPoint != null) return partStopPoint.position;
+        }
+
         if (clawPart == null)
         {
             if (partStopPoint != null) return partStopPoint.position;
             return new Vector3(-1.168f, 0.59f, -14.81f);
-        }
-
-        // [상태 오염 방지] 만약 클로가 이전 테스트 잔재로 차체(moto_base)나 소켓에 결합되어 있는 경우에만 복원
-        // (그리퍼에 물려있는 도중에는 절대 분리/리셋하지 않음!)
-        if (!IsClawHeldByGripper() && initialClawRecorded && clawPart.parent != initialClawParent)
-        {
-            Debug.LogWarning("[AssemblySequence] 클로가 이전 조립 잔재에 결합되어 있었습니다. 컨베이어 원래 위치로 자동 복원합니다.");
-            clawPart.SetParent(initialClawParent, true);
-            clawPart.position = initialClawPosition;
-            clawPart.rotation = initialClawRotation;
         }
 
         Transform graspPlatform = clawPart.Find("grap_platfrom_01");
@@ -536,18 +538,48 @@ public partial class AssemblySequence : MonoBehaviour
             slotCenter = new Vector3(-2.369f, 0.947f, -15.105f);
         }
 
-        if (customInsertDir.sqrMagnitude > 0.001f)
+        if (autoDetectInsertDir)
         {
-            insertDir = Vector3.ProjectOnPlane(customInsertDir, Vector3.up).normalized;
-        }
-        else if (targetRobotBase != null)
-        {
-            // moto_base의 뒤쪽(소켓 결합면 방향 = 현재 씬 기준 Vector3.left)
-            insertDir = Vector3.ProjectOnPlane(-targetRobotBase.forward, Vector3.up).normalized;
+            Vector3 candidate = Vector3.zero;
+            if (targetRobotBase != null)
+            {
+                candidate = Vector3.ProjectOnPlane(-targetRobotBase.forward, Vector3.up).normalized;
+            }
+            else if (currentBase != null)
+            {
+                candidate = Vector3.ProjectOnPlane(-currentBase.transform.forward, Vector3.up).normalized;
+            }
+            else if (slotTransform != null && slotTransform.parent != null && slotTransform == baseSocket)
+            {
+                candidate = Vector3.ProjectOnPlane(-slotTransform.parent.forward, Vector3.up).normalized;
+            }
+
+            if (candidate.sqrMagnitude > 0.001f)
+            {
+                insertDir = candidate;
+            }
+            else
+            {
+                insertDir = (customInsertDir.sqrMagnitude > 0.001f)
+                    ? Vector3.ProjectOnPlane(customInsertDir, Vector3.up).normalized
+                    : Vector3.left;
+            }
         }
         else
         {
-            insertDir = Vector3.left;
+            if (customInsertDir.sqrMagnitude > 0.001f)
+            {
+                insertDir = Vector3.ProjectOnPlane(customInsertDir, Vector3.up).normalized;
+            }
+            else if (targetRobotBase != null)
+            {
+                // moto_base의 뒤쪽(소켓 결합면 방향 = 현재 씬 기준 Vector3.left)
+                insertDir = Vector3.ProjectOnPlane(-targetRobotBase.forward, Vector3.up).normalized;
+            }
+            else
+            {
+                insertDir = Vector3.left;
+            }
         }
         if (insertDir.sqrMagnitude < 0.001f) insertDir = Vector3.left;
 
@@ -577,6 +609,38 @@ public partial class AssemblySequence : MonoBehaviour
             return mountPos - tipToClaw;
         }
         return mountPos;
+    }
+
+
+    /// <summary>
+    /// 로봇 중심(ik.GetWorkCenter())과 선분 a -> b의 XZ 평면상 최단 거리를 측정하여
+    /// 내부 사각지대(Inner Deadzone)를 관통하는지 여부 판별
+    /// </summary>
+    private bool DoesSegmentCrossDeadzone(Vector3 a, Vector3 b)
+    {
+        if (ik == null) return false;
+
+        Vector3 center = ik.GetWorkCenter();
+        Vector2 p = new Vector2(center.x, center.z);
+        Vector2 pA = new Vector2(a.x, a.z);
+        Vector2 pB = new Vector2(b.x, b.z);
+
+        Vector2 ab = pB - pA;
+        float abSqr = ab.sqrMagnitude;
+        Vector2 closestPoint;
+        if (abSqr < 0.0001f)
+        {
+            closestPoint = pA;
+        }
+        else
+        {
+            float t = Mathf.Clamp01(Vector2.Dot(p - pA, ab) / abSqr);
+            closestPoint = pA + t * ab;
+        }
+
+        float dist = Vector2.Distance(p, closestPoint);
+        float threshold = Mathf.Max(ik.innerDeadzoneRadius + 0.05f, 0.28f);
+        return dist < threshold;
     }
 
 
@@ -738,6 +802,12 @@ public partial class AssemblySequence : MonoBehaviour
         AutoFindReferences();
         ApplyGripperCloseTarget();
 
+        // [새 조립 시작 안전 복원] 클로가 이전 조립 잔재(차체/소켓 등)에 결합되어 있다면 컨베이어 초기 위치로 복원
+        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        {
+            ResetClawToInitialState();
+        }
+
         // 베이스와 부품 호환성 확인
         if (currentBase != null && currentPartInfo != null)
         {
@@ -840,8 +910,16 @@ public partial class AssemblySequence : MonoBehaviour
             yield return ik.MoveTo(liftGoal, alignWristYaw);
             yield return new WaitForSeconds(0.2f);
 
-            // [4.2] 그리퍼가 소켓 방향(<-X)을 바라본 채 회전 각도에 맞춰 팔을 굽히며 소켓 앞 대기 위치까지 직선(Linear) 이동
-            yield return ik.MoveLinearSmooth(insertApproach, alignLinearSpeed, alignWristYaw);
+            // [4.2] 그리퍼가 소켓 방향(<-X)을 바라본 채 회전 각도에 맞춰 팔을 굽히며 소켓 앞 대기 위치까지 이동 (사각지대 관통 시 원호 스윙)
+            Vector3 startPos = (ik.tip != null) ? ik.tip.position : liftGoal;
+            if (DoesSegmentCrossDeadzone(startPos, insertApproach))
+            {
+                yield return ik.MoveTo(insertApproach, alignWristYaw);
+            }
+            else
+            {
+                yield return ik.MoveLinearSmooth(insertApproach, alignLinearSpeed, alignWristYaw);
+            }
             yield return new WaitForSeconds(0.2f);
         }
 
@@ -939,6 +1017,12 @@ public partial class AssemblySequence : MonoBehaviour
 
         AutoFindReferences();
         ApplyGripperCloseTarget();
+
+        // [폐기 대상 클로 안전 확보] 클로가 이전 조립 잔재(차체 등)에 결합되어 있다면 컨베이어 초기 위치로 복원 후 폐기
+        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        {
+            ResetClawToInitialState();
+        }
 
         if (clawPart == null)
         {

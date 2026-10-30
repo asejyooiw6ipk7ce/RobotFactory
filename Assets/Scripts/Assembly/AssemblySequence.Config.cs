@@ -100,6 +100,9 @@ public partial class AssemblySequence
     [Tooltip("6단계 분리 후 상공 수직 상승 속도 (m/s, 기본 0.25m/s - SmoothStep 가감속 적용)")]
     public float retractLiftSpeed = 0.25f;
 
+    [Tooltip("체크 시 차체(targetRobotBase)의 회전을 실시간 감지하여 소켓 삽입 방향을 자동 계산 (해제 시 customInsertDir 수동 사용)")]
+    public bool autoDetectInsertDir = true;
+
     [Tooltip("소켓 삽입 접근 방향 (빨간 화살표 방향: (-1, 0, 0) = Vector3.left = 차체 결합면을 향해 진입)")]
     public Vector3 customInsertDir = Vector3.left;
 
@@ -152,8 +155,8 @@ public partial class AssemblySequence
     /// </summary>
     public Vector3 GetHomeWorldPosition()
     {
-        Vector3 basePos = (ik != null ? ik.transform.position : transform.position);
-        return basePos + homePosition;
+        Transform baseTr = (ik != null ? ik.transform : transform);
+        return baseTr.position + baseTr.rotation * homePosition;
     }
 
     #endregion
