@@ -381,6 +381,8 @@ public partial class AssemblySequence
             if (slotCenter != Vector3.zero) DrawReachGuideLine(center, slotCenter, "부품2 (Socket)");
 
             // 3. 폐기함
+            Vector3 rejectPos = GetRejectBinDropPosition();
+            if (rejectBin != null || rejectPos != Vector3.zero) DrawReachGuideLine(center, rejectPos, "폐기함 (RejectBin)");
 
             // 4. 완제품 배출 컨베이어
             if (outputConveyorPoint != null) DrawReachGuideLine(center, outputConveyorPoint.position, "완제품 (Conveyor)");

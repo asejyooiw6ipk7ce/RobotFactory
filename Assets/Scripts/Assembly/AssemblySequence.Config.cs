@@ -220,21 +220,20 @@ public partial class AssemblySequence
     {
         if (rejectBin != null)
         {
-            float topY = rejectBin.position.y;
             var colliders = rejectBin.GetComponentsInChildren<Collider>();
             if (colliders != null && colliders.Length > 0)
             {
-                foreach (var c in colliders)
+                // 자식 콜라이더 전체의 바운즈를 결합하여 실제 물리적 정중앙과 상단 높이 계산
+                Bounds combined = colliders[0].bounds;
+                for (int i = 1; i < colliders.Length; i++)
                 {
-                    if (c.bounds.max.y > topY) topY = c.bounds.max.y;
+                    combined.Encapsulate(colliders[i].bounds);
                 }
+                // 상자의 물리적 정중앙 X, Z 및 최상단 높이보다 18cm 높은 상공 좌표
+                return new Vector3(combined.center.x, combined.max.y + 0.18f, combined.center.z);
             }
-            else
-            {
-                topY = rejectBin.position.y + 0.50f;
-            }
-            // 상자 상단 가장자리보다 18cm 높은 상공 정중앙
-            return new Vector3(rejectBin.position.x, topY + 0.18f, rejectBin.position.z);
+
+            return new Vector3(rejectBin.position.x, rejectBin.position.y + 0.65f, rejectBin.position.z);
         }
 
         Transform baseTr = (ik != null ? ik.transform : transform);
