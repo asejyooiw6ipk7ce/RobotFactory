@@ -413,28 +413,115 @@ public partial class AssemblySequence : MonoBehaviour
         }
     }
 
+    private bool isPart1ReadyForCycle = false;
+    private bool isPart2ReadyForCycle = false;
+
     public void SetPart(PartInfo part)
     {
         currentPartInfo = part;
         clawPart = part != null ? part.transform : null;
+        BindNewClawInstance();
     }
 
     public void SetPart(Transform partTransform)
     {
         clawPart = partTransform;
         currentPartInfo = partTransform != null ? partTransform.GetComponent<PartInfo>() : null;
+        BindNewClawInstance();
+    }
+
+    private void BindNewClawInstance()
+    {
+        if (clawPart == null) return;
+
+        var rb = clawPart.GetComponent<Rigidbody>();
+        if (rb != null) rb.isKinematic = true;
+
+        Transform graspPlatform = clawPart.Find("grap_platfrom_01");
+        if (graspPlatform != null)
+        {
+            var box = graspPlatform.GetComponent<BoxCollider>();
+            if (box == null) box = graspPlatform.gameObject.AddComponent<BoxCollider>();
+            box.size = new Vector3(0.035f, 0.040f, 0.040f);
+            box.center = Vector3.zero;
+        }
+
+        // 새로 투입된 클로의 정지 위치를 초기 기준점으로 갱신
+        initialClawPosition = clawPart.position;
+        initialClawRotation = clawPart.rotation;
+        initialClawParent = clawPart.parent;
+        initialClawRecorded = true;
     }
 
     public void SetBase(BaseInfo b)
     {
         currentBase = b;
         targetRobotBase = b != null ? b.transform : null;
+        BindNewBaseSocket();
     }
 
     public void SetBase(Transform baseTransform)
     {
         targetRobotBase = baseTransform;
         currentBase = baseTransform != null ? baseTransform.GetComponent<BaseInfo>() : null;
+        BindNewBaseSocket();
+    }
+
+    private void BindNewBaseSocket()
+    {
+        baseSocket = null;
+        if (targetRobotBase == null) return;
+
+        foreach (var t in targetRobotBase.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name.Equals("Socket", System.StringComparison.OrdinalIgnoreCase))
+            {
+                baseSocket = t;
+                break;
+            }
+        }
+
+        if (baseSocket == null && currentBase != null && currentBase.socket != null)
+        {
+            baseSocket = currentBase.socket;
+        }
+
+        if (currentBase != null && baseSocket != null)
+        {
+            currentBase.socket = baseSocket;
+        }
+        basePoint = targetRobotBase;
+    }
+
+    /// <summary>
+    /// [WBS 5.4] 스테이션 2 컨베이어 A 스토퍼에 양품 부품1(클로)이 도착했을 때 호출
+    /// </summary>
+    public void NotifyPart1Ready(PartInfo part)
+    {
+        SetPart(part);
+        isPart1ReadyForCycle = (clawPart != null);
+        TryStartAssemblyIfBothReady();
+    }
+
+    /// <summary>
+    /// [WBS 5.4] 스테이션 2 컨베이어 B 검사 지점에 양품 부품2(로봇 베이스)가 준비되었을 때 호출
+    /// </summary>
+    public void NotifyPart2Ready(BaseInfo robotBase)
+    {
+        SetBase(robotBase);
+        isPart2ReadyForCycle = (targetRobotBase != null);
+        TryStartAssemblyIfBothReady();
+    }
+
+    private void TryStartAssemblyIfBothReady()
+    {
+        if (!autoStartWhenBothPartsReady || IsBusy) return;
+        if (isPart1ReadyForCycle && isPart2ReadyForCycle && clawPart != null && targetRobotBase != null)
+        {
+            isPart1ReadyForCycle = false;
+            isPart2ReadyForCycle = false;
+            StartCoroutine(Assemble(-1f));
+        }
     }
 
 
@@ -524,6 +611,12 @@ public partial class AssemblySequence : MonoBehaviour
     /// </summary>
     public void GetSlotInfo(out Vector3 slotCenter, out Vector3 approachPos, out Vector3 insertDir)
     {
+        // 다중 스폰 시 baseSocket이 이전 차체를 가리키고 있으면 현재 targetRobotBase 기준으로 재탐색
+        if (baseSocket != null && targetRobotBase != null && !baseSocket.IsChildOf(targetRobotBase))
+        {
+            baseSocket = null;
+        }
+
         // 1순위: moto_base의 실제 Socket 객체 (사용자가 추가한 결합 지점)
         Transform slotTransform = baseSocket;
         if (slotTransform == null && targetRobotBase != null)
@@ -905,10 +998,14 @@ public partial class AssemblySequence : MonoBehaviour
         AutoFindReferences();
         ApplyGripperCloseTarget();
 
-        // [새 조립 시작 안전 복원] 클로가 이전 조립 잔재(차체/소켓 등)에 결합되어 있다면 컨베이어 초기 위치로 복원
-        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        // [단독 테스트 안전 복원] 동일 클로로 반복 테스트할 때만 초기 위치로 복원
+        if (autoResetClawOnAssembleStart && initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
         {
-            ResetClawToInitialState();
+            // 현재 타깃 베이스(targetRobotBase)에 붙어있는 동일 클로인 경우에만 리셋 (이미 출하된 다른 차체의 클로는 보호)
+            if (targetRobotBase == null || clawPart.IsChildOf(targetRobotBase))
+            {
+                ResetClawToInitialState();
+            }
         }
 
         // 베이스와 부품 호환성 확인
@@ -1363,6 +1460,16 @@ public partial class AssemblySequence : MonoBehaviour
             {
                 SetState(RobotState.Working, $"{retryPrefix}8-1. 카메라3 완제품 비전 촬영 및 결합 각도 판정");
                 yield return camera3Inspector.CaptureAndInspectRoutine(currentPartInfo, currentBase, 0.1f);
+            }
+
+            // 8-2. 컨베이어 및 스토퍼가 연결되어 있다면 완제품 이송 재개 (WBS 6.5, 7.3)
+            if (outputConveyor != null)
+            {
+                outputConveyor.ResumeConveyor();
+            }
+            if (outputStopper != null)
+            {
+                yield return outputStopper.Resume();
             }
 
             // 대기 자세(Home)로 초기 관절 각도로 안전 복귀

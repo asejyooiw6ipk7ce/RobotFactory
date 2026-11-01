@@ -50,9 +50,21 @@ public partial class AssemblySequence
     [Tooltip("부품 불량 시 폐기할 폐기함 기준점 (RejectBin, 비워두면 로봇 기준 기본 좌표 자동 적용)")]
     public Transform rejectBin;
 
-    [Header("완제품 비전 검사 연동")]
+    [Header("완제품 비전 검사 및 컨베이어 입출고 연동")]
     [Tooltip("조립 및 비틀림 적용 후 완제품을 촬영·판정할 카메라3 검사기 (비워두면 씬에서 자동 검색)")]
     public Camera3Inspector camera3Inspector;
+
+    [Tooltip("체크 시 컨베이어 A(부품1)와 컨베이어 B(부품2)가 모두 도착(NotifyPart1Ready/NotifyPart2Ready)하면 자동으로 Assemble()을 시작합니다.")]
+    public bool autoStartWhenBothPartsReady = true;
+
+    [Tooltip("단독 반복 테스트 편의용: Assemble 시작 시 클로가 이미 결합되어 있으면 초기 위치로 리셋할지 여부 (연속 스폰 시에는 새 클로가 주입되므로 간섭 방지됨)")]
+    public bool autoResetClawOnAssembleStart = true;
+
+    [Tooltip("조립 및 검사 완료 후 재가동할 컨베이어 제어기 (선택 사항)")]
+    public ConveyorController outputConveyor;
+
+    [Tooltip("조립 및 검사 완료 후 해제(Resume)할 스토퍼 제어기 (선택 사항)")]
+    public PartStopper outputStopper;
 
     [Header("자세 적응형 파지 (Adaptive Grasp)")]
     [Tooltip("체크 시 컨베이어 벨트 등에서 회전되어 들어오는 클로의 각도를 실시간 감지하여 최적 손목 각도(Yaw) 자동 계산")]
