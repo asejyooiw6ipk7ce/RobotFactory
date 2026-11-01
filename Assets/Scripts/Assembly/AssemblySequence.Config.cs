@@ -50,6 +50,10 @@ public partial class AssemblySequence
     [Tooltip("부품 불량 시 폐기할 폐기함 기준점 (RejectBin, 비워두면 로봇 기준 기본 좌표 자동 적용)")]
     public Transform rejectBin;
 
+    [Header("완제품 비전 검사 연동")]
+    [Tooltip("조립 및 비틀림 적용 후 완제품을 촬영·판정할 카메라3 검사기 (비워두면 씬에서 자동 검색)")]
+    public Camera3Inspector camera3Inspector;
+
     [Header("자세 적응형 파지 (Adaptive Grasp)")]
     [Tooltip("체크 시 컨베이어 벨트 등에서 회전되어 들어오는 클로의 각도를 실시간 감지하여 최적 손목 각도(Yaw) 자동 계산")]
     public bool autoDetectClawYaw = true;

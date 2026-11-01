@@ -405,6 +405,12 @@ public partial class AssemblySequence : MonoBehaviour
             if (bin == null) bin = GameObject.Find("Bin");
             if (bin != null) rejectBin = bin.transform;
         }
+
+        // 9. 완제품 비전 검사기(Camera3Inspector) 자동 탐색
+        if (camera3Inspector == null)
+        {
+            camera3Inspector = FindAnyObjectByType<Camera3Inspector>();
+        }
     }
 
     public void SetPart(PartInfo part)
@@ -1343,6 +1349,13 @@ public partial class AssemblySequence : MonoBehaviour
             // 상공으로 수직 상승 후 홈 복귀 (차체 간섭 방지)
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
+
+            // 8-1. 그리퍼가 시야에서 완전히 벗어난 직후 카메라3 완제품 비전 촬영 및 결합 각도 판정 (FR-09)
+            if (camera3Inspector != null)
+            {
+                SetState(RobotState.Working, $"{retryPrefix}8-1. 카메라3 완제품 비전 촬영 및 결합 각도 판정");
+                yield return camera3Inspector.CaptureAndInspectRoutine(currentPartInfo, currentBase, 0.1f);
+            }
 
             // 대기 자세(Home)로 초기 관절 각도로 안전 복귀
             ik.pointDown = true;
