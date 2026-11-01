@@ -150,21 +150,21 @@ public class AssemblySequenceEditor : Editor
         // 실패 확률 빠른 프리셋 버튼
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("실패 확률 프리셋:", GUILayout.Width(95));
-        if (GUILayout.Button("기본 50% 통일", EditorStyles.miniButton))
-        {
-            seq.assemblyFailureProbability = 0.50f;
-            seq.retry1FailureProbability = 0.50f;
-            seq.retry2FailureProbability = 0.50f;
-            EditorUtility.SetDirty(seq);
-        }
-        if (GUILayout.Button("0% (전부 성공)", EditorStyles.miniButton))
+        if (GUILayout.Button("✅ 기본 0% (정상 공정)", EditorStyles.miniButton))
         {
             seq.assemblyFailureProbability = 0f;
             seq.retry1FailureProbability = 0f;
             seq.retry2FailureProbability = 0f;
             EditorUtility.SetDirty(seq);
         }
-        if (GUILayout.Button("100% (전부 실패)", EditorStyles.miniButton))
+        if (GUILayout.Button("🎲 시연용 50%", EditorStyles.miniButton))
+        {
+            seq.assemblyFailureProbability = 0.50f;
+            seq.retry1FailureProbability = 0.50f;
+            seq.retry2FailureProbability = 0.50f;
+            EditorUtility.SetDirty(seq);
+        }
+        if (GUILayout.Button("❌ 100% (전부 실패)", EditorStyles.miniButton))
         {
             seq.assemblyFailureProbability = 1.0f;
             seq.retry1FailureProbability = 1.0f;

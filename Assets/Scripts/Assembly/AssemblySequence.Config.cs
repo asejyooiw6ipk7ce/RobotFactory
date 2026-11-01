@@ -168,17 +168,17 @@ public partial class AssemblySequence
     [Range(0, 5)]
     public int maxRetryCount = 2;
 
-    [Tooltip("1차 조립 시도 실패 확률 (기본값: 0.50 = 50% 실패)")]
+    [Tooltip("1차 조립 시도 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
     [Range(0f, 1f)]
-    public float assemblyFailureProbability = 0.50f;
+    public float assemblyFailureProbability = 0.0f;
 
-    [Tooltip("재시도 1회차 실패 확률 (기본값: 0.50 = 50% 실패)")]
+    [Tooltip("재시도 1회차 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
     [Range(0f, 1f)]
-    public float retry1FailureProbability = 0.50f;
+    public float retry1FailureProbability = 0.0f;
 
-    [Tooltip("재시도 2회차 실패 확률 (기본값: 0.50 = 50% 실패)")]
+    [Tooltip("재시도 2회차 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
     [Range(0f, 1f)]
-    public float retry2FailureProbability = 0.50f;
+    public float retry2FailureProbability = 0.0f;
 
     [Tooltip("체크 시 1차 실패에서만 SRS 20초 타임아웃을 대기합니다 (체크 해제 시 1차 실패도 걸림 연출 후 빠르게 재시도). 재시도 회차부터는 대기 없이 즉시 걸림 연출 후 다음 단계로 진행됩니다.")]
     public bool waitFullTimeoutOnFirstFail = false;
