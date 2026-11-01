@@ -16,10 +16,10 @@ public class Camera3Inspector : MonoBehaviour
     [Tooltip("촬영에 사용할 카메라 컴포넌트 (비워두면 동일 오브젝트의 Camera 자동 탐색)")]
     public Camera captureCamera;
 
-    [Tooltip("검사 스테이션 ID (기본: Station3)")]
+    [Tooltip("검사 스테이션 ID")]
     public StationId stationId = StationId.Station3;
 
-    [Header("검사 판정 기준 (FR-09 / TC-11)")]
+    [Header("검사 판정 기준")]
     [Tooltip("불량 판정 각도 오차 기준 (도, 기본 3.0°. 오차 > 3.0° 이면 불량)")]
     [Range(0.1f, 15f)]
     public float thresholdAngle = 3.0f;
@@ -137,7 +137,7 @@ public class Camera3Inspector : MonoBehaviour
     }
 
     /// <summary>
-    /// 완제품 결합 각도 검사 및 판정 수행 (FR-09)
+    /// 완제품 결합 각도 검사 및 판정 수행
     /// </summary>
     public bool InspectProduct(PartInfo clawPartInfo, BaseInfo robotBaseInfo)
     {

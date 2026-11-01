@@ -506,6 +506,30 @@ public class AssemblySequenceEditor : Editor
         );
         EditorGUILayout.EndVertical();
 
+        // 6-5. TC-11 완제품 비전 검사 원클릭 검증 (FR-09 카메라 3 연계)
+        EditorGUILayout.Space(8);
+        EditorGUILayout.BeginVertical("box");
+        GUILayout.Label("📷 TC-11 완제품 비전 검사 검증", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        GUI.backgroundColor = new Color(0.35f, 0.85f, 0.45f);
+        if (GUILayout.Button("✅ [3.0° 양품] 전체 조립 검증\n(Assemble ➔ Camera3 Pass)", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, 3.0f, 0f, 0));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = new Color(1.0f, 0.45f, 0.45f);
+        if (GUILayout.Button("❌ [3.1° 불량] 전체 조립 검증\n(Assemble ➔ Camera3 Fail)", GUILayout.Height(38)))
+        {
+            if (Application.isPlaying) seq.StartCoroutine(seq.Assemble(-1f, null, 3.1f, 0f, 0));
+            else EditorUtility.DisplayDialog("알림", "Play(▶) 모드에서 실행해주세요!", "확인");
+        }
+        GUI.backgroundColor = Color.white;
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.HelpBox("• [3.0° 양품]: 결합 각도 오차를 3.0°로 주입하여 조립 후 카메라3이 Pass(양품) 판정하는지 검증합니다.\n• [3.1° 불량]: 결합 각도 오차를 3.1°로 주입하여 조립 후 카메라3이 Fail(AngleError) 판정하는지 검증합니다.", MessageType.None);
+        EditorGUILayout.EndVertical();
+
         // 7. 메인 시퀀스 실행 버튼들 (Assemble / Reject / Refeed)
         EditorGUILayout.Space(10);
         GUILayout.Label("🚀 메인 시퀀스 실행", EditorStyles.boldLabel);
