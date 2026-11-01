@@ -37,6 +37,9 @@ public class Camera3Inspector : MonoBehaviour
     [Tooltip("검사 시 ProcessCounters.Add(CounterType.Inspected) 호출 여부")]
     public bool publishInspectedCounter = true;
 
+    [Tooltip("검사 직후 양품(Shipped) / 불량(Defective) 카운터 증가 및 PartExitEvent 자동 발행 여부 (별도 푸셔가 발행 시 해제)")]
+    public bool publishBranchCounterAndExit = true;
+
     [Header("메인 씬 통합 대비 상대 오프셋 (ChangminScene 실측치)")]
     [Tooltip("로봇2 베이스 기준 카메라 위치 로컬 오프셋")]
     public Vector3 offsetFromRobotPos = new Vector3(-0.215f, 0.2409f, 0.6874f);
@@ -180,6 +183,22 @@ public class Camera3Inspector : MonoBehaviour
         if (publishInspectedCounter)
         {
             ProcessCounters.Add(CounterType.Inspected);
+        }
+
+        // 7. 출하(Shipped) / 불량(Defective) 카운터 및 공정 이탈 이벤트(PartExitEvent) 발행 (FR-10, FR-12)
+        if (publishBranchCounterAndExit)
+        {
+            CounterType branchCounter = isPass ? CounterType.Shipped : CounterType.Defective;
+            ExitReason exitReason = isPass ? ExitReason.Shipped : ExitReason.Defective;
+
+            ProcessCounters.Add(branchCounter);
+            InspectEventBus.PublishExit(new PartExitEvent(partId, exitReason, defect, Time.time));
+
+            // 조립에 사용되어 완제품에 통합된 부품1(클로)도 공정 위 대기 부품에서 소모되었음을 알림
+            if (clawPartInfo != null && !string.IsNullOrEmpty(clawPartInfo.id) && clawPartInfo.id != partId)
+            {
+                InspectEventBus.PublishExit(new PartExitEvent(clawPartInfo.id, exitReason, defect, Time.time));
+            }
         }
 
         string resultTag = isPass ? "🟢 PASS (양품)" : "🔴 FAIL (불량 - AngleError)";

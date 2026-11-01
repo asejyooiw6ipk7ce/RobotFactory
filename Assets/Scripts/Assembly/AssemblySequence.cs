@@ -1260,7 +1260,14 @@ public partial class AssemblySequence : MonoBehaviour
 
         yield return new WaitForSeconds(0.6f);
 
-        // 5. 차체(베이스) 조립 불량(PartLoss) 기록 및 배출 이벤트 발행
+        // 5. 클로 폐기(Discarded) 및 차체(베이스) 조립 불량(PartLoss) 기록·카운터·배출 이벤트 발행
+        string clawId = (currentPartInfo != null && !string.IsNullOrEmpty(currentPartInfo.id))
+            ? currentPartInfo.id
+            : (clawPart != null ? clawPart.name : "CLAW_PART");
+
+        ProcessCounters.Add(CounterType.Discarded);
+        InspectEventBus.PublishExit(new PartExitEvent(clawId, ExitReason.Discarded, DefectType.None, Time.time));
+
         if (currentBase != null)
         {
             currentBase.defectType = DefectType.PartLoss;
@@ -1275,8 +1282,9 @@ public partial class AssemblySequence : MonoBehaviour
             ? currentBase.id
             : (targetRobotBase != null ? targetRobotBase.name : "BASE_MOTO");
 
+        ProcessCounters.Add(CounterType.Defective);
         InspectEventBus.PublishExit(new PartExitEvent(baseId, ExitReason.Defective, DefectType.PartLoss, Time.time));
-        Debug.LogWarning($"[AssemblySequence] 📢 차체 조립 불량(PartLoss) 배출 이벤트 발행: PartId={baseId}, ExitReason=Defective, DefectType=PartLoss");
+        Debug.LogWarning($"[AssemblySequence] 📢 조립 최종 실패 처리 완료 | 클로 폐기(Discarded): {clawId}, 차체 불량 배출(Defective/PartLoss): {baseId}");
 
         // 6. 로봇 홈 복귀
         if (ik != null)
