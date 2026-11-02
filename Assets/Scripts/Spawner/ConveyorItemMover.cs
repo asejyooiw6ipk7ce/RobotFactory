@@ -2,40 +2,40 @@ using UnityEngine;
 
 public class ConveyorItemMover : MonoBehaviour
 {
-    [Header("이동 설정")]
+    [Header("경로 이동 설정")]
 
-    // 웨이포인트에 도착했다고 판단할 거리입니다.
+    // 아이템이 웨이포인트에 도착했다고 판단할 수평 거리입니다.
     [SerializeField] private float waypointReachDistance = 0.03f;
 
-    // 이동 방향을 향해 회전시킬지 설정합니다.
+    // 이동 경로를 따라 아이템의 방향도 돌릴지 설정합니다.
     [SerializeField] private bool rotateAlongPath = true;
 
     // 이동 방향으로 회전하는 속도입니다.
     [SerializeField] private float rotationSpeed = 8f;
 
-    // 아이템을 제어할 중앙 매니저입니다.
+    // 중앙 컨베이어 매니저와 라인 정보입니다.
     private ConveyorManager conveyorManager;
-
-    // 아이템이 이동할 라인 ID입니다.
     private ConveyorLineId lineId;
 
-    // 웨이포인트가 없을 때 사용할 직선 방향입니다.
+    // 웨이포인트가 없을 때 사용할 직선 이동 방향입니다.
     private Vector3 moveDirection;
 
-    // 아이템 모델에 적용할 추가 회전값입니다.
+    // 아이템 모델에 적용할 회전 오프셋입니다.
     private Vector3 rotationOffset;
 
-    // 현재 이동 목표 웨이포인트의 인덱스입니다.
+    // 현재 이동할 웨이포인트 인덱스입니다.
     private int waypointIndex;
 
-    // 작업 지점에서 대기 중인지 나타냅니다.
+    // 정지점에서 작업 완료를 기다리는 상태입니다.
     private bool isWaitingAtStopPoint;
 
-    // 아이템 운반 상태를 확인할 컴포넌트입니다.
+    // 아이템 상태와 물리 이동을 제어하는 컴포넌트입니다.
     private Item item;
+    private Rigidbody itemRigidbody;
 
-    // 연결 누락 경고를 한 번만 출력하기 위한 변수입니다.
+    // 매니저 또는 Rigidbody 누락 경고를 한 번만 출력합니다.
     private bool hasWarnedMissingManager;
+    private bool hasWarnedMissingRigidbody;
 
     public bool IsWaitingAtStopPoint => isWaitingAtStopPoint;
     public int CurrentWaypointIndex => waypointIndex;
@@ -43,9 +43,10 @@ public class ConveyorItemMover : MonoBehaviour
     private void Awake()
     {
         item = GetComponent<Item>();
+        itemRigidbody = GetComponent<Rigidbody>();
     }
 
-    // ItemSpawner가 아이템 생성 후 호출합니다.
+    // 스포너가 아이템 생성 직후 매니저, 라인, 방향을 전달합니다.
     public void Initialize(
         ConveyorManager manager,
         ConveyorLineId targetLineId,
@@ -57,7 +58,6 @@ public class ConveyorItemMover : MonoBehaviour
         lineId = targetLineId;
         rotationOffset = itemRotationOffset;
 
-        // 방향 벡터가 비어 있으면 아이템의 현재 앞 방향을 사용합니다.
         moveDirection = direction.sqrMagnitude > 0f
             ? direction.normalized
             : transform.forward;
@@ -65,23 +65,29 @@ public class ConveyorItemMover : MonoBehaviour
         waypointIndex = Mathf.Max(0, startWaypointIndex);
         isWaitingAtStopPoint = false;
         hasWarnedMissingManager = false;
+        hasWarnedMissingRigidbody = false;
 
         if (item == null)
             item = GetComponent<Item>();
 
-        if (conveyorManager == null)
+        if (itemRigidbody == null)
+            itemRigidbody = GetComponent<Rigidbody>();
+
+        if (itemRigidbody == null)
         {
             Debug.LogError(
-                "ConveyorItemMover: ConveyorManager가 전달되지 않았습니다.",
+                "ConveyorItemMover: 물리 이동을 위해 아이템 루트에 Rigidbody가 필요합니다.",
                 this);
         }
     }
 
-    private void Update()
+    // 동적 Rigidbody의 속도는 물리 프레임에서 갱신합니다.
+    private void FixedUpdate()
     {
-        // 매니저 연결이 없으면 이동하지 않습니다.
         if (conveyorManager == null)
         {
+            StopHorizontalMotion();
+
             if (!hasWarnedMissingManager)
             {
                 Debug.LogWarning(
@@ -94,19 +100,36 @@ public class ConveyorItemMover : MonoBehaviour
             return;
         }
 
-        // 작업 대기 중인 아이템은 현재 위치에 머뭅니다.
-        if (isWaitingAtStopPoint)
-            return;
+        if (itemRigidbody == null)
+        {
+            if (!hasWarnedMissingRigidbody)
+            {
+                Debug.LogError(
+                    "ConveyorItemMover: Rigidbody가 없어 아이템을 움직일 수 없습니다.",
+                    this);
 
-        // 로봇이 잡거나 다른 상태로 전환된 아이템은 컨베이어가 이동시키지 않습니다.
-        if (item != null && item.state != ItemState.Idle)
-            return;
+                hasWarnedMissingRigidbody = true;
+            }
 
-        // 라인이 멈췄거나 일시정지 중이면 속도는 0입니다.
+            return;
+        }
+
+        // 작업 대기 중이거나 로봇이 아이템을 인계받으면 수평 이동을 멈춥니다.
+        if (isWaitingAtStopPoint ||
+            (item != null && item.state != ItemState.Idle))
+        {
+            StopHorizontalMotion();
+            return;
+        }
+
+        // 매니저가 라인을 멈추면 수평 이동 속도도 0으로 만듭니다.
         float speed = conveyorManager.GetLineSpeed(lineId);
 
         if (speed <= 0f)
+        {
+            StopHorizontalMotion();
             return;
+        }
 
         Transform[] waypoints =
             conveyorManager.GetLineWaypoints(lineId);
@@ -121,97 +144,128 @@ public class ConveyorItemMover : MonoBehaviour
         }
     }
 
-    // 웨이포인트가 없는 경우 직선으로 이동합니다.
+    // 웨이포인트가 없는 경우 지정한 방향으로 이동합니다.
     private void MoveStraight(float speed)
     {
-        transform.position +=
-            moveDirection * speed * Time.deltaTime;
+        Vector3 planarDirection =
+            Vector3.ProjectOnPlane(moveDirection, Vector3.up);
 
-        // 직선 이동에서도 이동 방향과 오프셋을 반영합니다.
+        if (planarDirection.sqrMagnitude <= 0.0001f)
+        {
+            StopHorizontalMotion();
+            return;
+        }
+
+        SetHorizontalVelocity(planarDirection.normalized * speed);
+
         if (rotateAlongPath)
-            RotateTowards(moveDirection);
+            RotateAlongDirection(planarDirection);
     }
 
-    // 현재 웨이포인트까지 이동합니다.
+    // 웨이포인트를 순서대로 따라갑니다.
     private void MoveAlongWaypoints(
         Transform[] waypoints,
         float speed)
     {
-        if (waypointIndex >= waypoints.Length)
-            return;
-
-        Transform target = waypoints[waypointIndex];
-
-        // 웨이포인트가 비어 있으면 다음 항목으로 넘어갑니다.
-        if (target == null)
+        // 현재 지점이 비어 있거나 이미 도착했으면 다음 지점을 확인합니다.
+        while (waypointIndex < waypoints.Length)
         {
+            Transform target = waypoints[waypointIndex];
+
+            if (target == null)
+            {
+                waypointIndex++;
+                continue;
+            }
+
+            // 컨베이어가 수평이라고 보고 Y축 차이는 도착 거리에서 제외합니다.
+            Vector3 directionToTarget =
+                target.position - itemRigidbody.position;
+
+            Vector3 planarDirection =
+                Vector3.ProjectOnPlane(directionToTarget, Vector3.up);
+
+            if (planarDirection.magnitude > waypointReachDistance)
+            {
+                SetHorizontalVelocity(planarDirection.normalized * speed);
+
+                if (rotateAlongPath)
+                    RotateAlongDirection(planarDirection);
+
+                return;
+            }
+
+            // 정지 지점에 도착하면 아이템과 라인을 멈추고 이벤트를 보냅니다.
+            if (conveyorManager.IsStopWaypoint(lineId, waypointIndex))
+            {
+                isWaitingAtStopPoint = true;
+                StopHorizontalMotion();
+
+                conveyorManager.NotifyItemArrivedAtStopPoint(
+                    lineId,
+                    waypointIndex,
+                    gameObject);
+
+                return;
+            }
+
+            // 일반 경유점이면 다음 웨이포인트로 넘어갑니다.
             waypointIndex++;
-            return;
         }
 
-        Vector3 directionToTarget =
-            target.position - transform.position;
-
-        // 목표 위치까지 이동합니다.
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            target.position,
-            speed * Time.deltaTime);
-
-        // 이동 방향에 회전 오프셋을 더해 아이템의 방향을 맞춥니다.
-        if (rotateAlongPath)
-            RotateTowards(directionToTarget);
-
-        if (Vector3.Distance(transform.position, target.position) >
-            waypointReachDistance)
-        {
-            return;
-        }
-
-        // 도착한 아이템을 웨이포인트 위치에 맞춥니다.
-        transform.position = target.position;
-
-        // 작업 정지 지점에 도착하면 라인을 멈추고 대기합니다.
-        if (conveyorManager.IsStopWaypoint(lineId, waypointIndex))
-        {
-            isWaitingAtStopPoint = true;
-
-            conveyorManager.NotifyItemArrivedAtStopPoint(
-                lineId,
-                waypointIndex,
-                gameObject);
-
-            return;
-        }
-
-        // 정지 지점이 아니면 다음 웨이포인트로 진행합니다.
-        waypointIndex++;
+        // 배열 끝까지 왔으면 경로가 끝난 것이므로 이동을 멈춥니다.
+        StopHorizontalMotion();
     }
 
-    // 진행 방향을 바라보되 Rotation Offset을 계속 적용합니다.
-    private void RotateTowards(Vector3 direction)
+    // 수평 속도만 바꾸고 중력에 의한 Y축 속도는 보존합니다.
+    private void SetHorizontalVelocity(Vector3 horizontalVelocity)
     {
-        direction.y = 0f;
+        Vector3 currentVelocity = itemRigidbody.linearVelocity;
 
-        if (direction.sqrMagnitude <= 0.0001f)
+        itemRigidbody.linearVelocity = new Vector3(
+            horizontalVelocity.x,
+            currentVelocity.y,
+            horizontalVelocity.z);
+    }
+
+    // 라인이 멈출 때 수평 이동만 정지시킵니다.
+    // Y축 속도를 보존해 중력과 낙하가 계속 작동하게 합니다.
+    private void StopHorizontalMotion()
+    {
+        if (itemRigidbody == null || itemRigidbody.isKinematic)
+            return;
+
+        Vector3 currentVelocity = itemRigidbody.linearVelocity;
+
+        itemRigidbody.linearVelocity = new Vector3(
+            0f,
+            currentVelocity.y,
+            0f);
+    }
+
+    // 이동 방향에 회전 오프셋을 적용합니다.
+    private void RotateAlongDirection(Vector3 direction)
+    {
+        Vector3 planarDirection =
+            Vector3.ProjectOnPlane(direction, Vector3.up);
+
+        if (planarDirection.sqrMagnitude <= 0.0001f)
             return;
 
         Quaternion pathRotation =
-            Quaternion.LookRotation(direction.normalized, Vector3.up);
-
-        Quaternion offsetRotation =
-            Quaternion.Euler(rotationOffset);
+            Quaternion.LookRotation(planarDirection.normalized, Vector3.up);
 
         Quaternion targetRotation =
-            pathRotation * offsetRotation;
+            pathRotation * Quaternion.Euler(rotationOffset);
 
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            targetRotation,
-            rotationSpeed * Time.deltaTime);
+        itemRigidbody.MoveRotation(
+            Quaternion.Slerp(
+                itemRigidbody.rotation,
+                targetRotation,
+                rotationSpeed * Time.fixedDeltaTime));
     }
 
-    // 작업 완료 후 호출하면 다음 웨이포인트로 이동할 수 있습니다.
+    // 작업 완료 시 호출하면 다음 웨이포인트로 진행합니다.
     public void ReleaseWaitingAtStopPoint()
     {
         if (!isWaitingAtStopPoint)
@@ -221,7 +275,7 @@ public class ConveyorItemMover : MonoBehaviour
         waypointIndex++;
     }
 
-    // 아이템을 다른 컨베이어 라인으로 넘길 때 사용합니다.
+    // 아이템을 다른 라인으로 이관할 때 사용합니다.
     public void TransferToConveyor(
         ConveyorManager manager,
         ConveyorLineId targetLineId,

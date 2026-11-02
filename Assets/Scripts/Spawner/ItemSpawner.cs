@@ -6,10 +6,10 @@ public class ItemSpawner : MonoBehaviour
 {
     [Header("스폰할 아이템 설정")]
 
-    // 생성할 프리팹입니다.
+    // 생성할 아이템 프리팹입니다.
     [SerializeField] private GameObject itemPrefab;
 
-    // 아이템을 생성할 위치입니다.
+    // 아이템이 생성될 위치입니다.
     [SerializeField] private Transform spawnPoint;
 
     // 생성할 최대 아이템 수입니다.
@@ -20,16 +20,16 @@ public class ItemSpawner : MonoBehaviour
 
     [Header("아이템 방향 설정")]
 
-    // 스폰 회전과 이동 방향 회전에 계속 적용할 오프셋입니다.
+    // 스폰 회전과 경로 방향에 적용할 오프셋입니다.
     [SerializeField] private Vector3 rotationOffset;
 
-    // 지정하면 이 Transform의 앞 방향을 이동 방향으로 사용합니다.
-    // 비워두면 ItemSpawner의 앞 방향을 사용합니다.
+    // 지정하면 이 Transform의 forward 방향을 이동 방향으로 사용합니다.
+    // 비워두면 ItemSpawner의 forward 방향을 사용합니다.
     [SerializeField] private Transform moveDirectionPoint;
 
     [Header("중앙 컨베이어 매니저 설정")]
 
-    // 씬에 배치한 중앙 ConveyorManager입니다.
+    // 씬에 배치한 ConveyorManager입니다.
     [SerializeField] private ConveyorManager conveyorManager;
 
     // 이 스포너가 아이템을 투입할 라인입니다.
@@ -37,9 +37,6 @@ public class ItemSpawner : MonoBehaviour
 
     // 지금까지 생성한 아이템 수입니다.
     private int currentSpawnCount;
-
-    // Last spawned item's mover (used to check whether the line is still occupied)
-    private ConveyorItemMover lastMover;
 
     // Items spawned by this spawner (so Reset can remove them)
     private readonly List<GameObject> spawnedItems = new List<GameObject>();
@@ -78,7 +75,7 @@ public class ItemSpawner : MonoBehaviour
         while (currentSpawnCount < maxCount)
         {
             // 지정한 라인이 운전 중일 때만 생성합니다.
-            if (conveyorManager.IsLineRunning(lineId) && !IsLineOccupied())
+            if (conveyorManager.IsLineRunning(lineId))
             {
                 if (SpawnItem())
                     currentSpawnCount++;
@@ -87,21 +84,10 @@ public class ItemSpawner : MonoBehaviour
             }
             else
             {
-                // 라인이 정지하면 스폰도 대기합니다.
+                // 라인이 정지 중이면 스폰도 기다립니다.
                 yield return new WaitForSeconds(0.5f);
             }
         }
-    }
-
-    // True while the last spawned item has not finished its waypoint path yet
-    private bool IsLineOccupied()
-    {
-        if (lastMover == null) return false;
-
-        Transform[] waypoints = conveyorManager.GetLineWaypoints(lineId);
-        if (waypoints == null || waypoints.Length == 0) return false;
-
-        return lastMover.CurrentWaypointIndex < waypoints.Length;
     }
 
     private bool SpawnItem()
@@ -109,7 +95,6 @@ public class ItemSpawner : MonoBehaviour
         if (itemPrefab == null || spawnPoint == null)
             return false;
 
-        // 스폰 위치 회전에 Rotation Offset을 적용합니다.
         Quaternion spawnRotation =
             spawnPoint.rotation * Quaternion.Euler(rotationOffset);
 
@@ -117,6 +102,26 @@ public class ItemSpawner : MonoBehaviour
             itemPrefab,
             spawnPoint.position,
             spawnRotation);
+
+        // 물리 이동을 위해 Rigidbody를 프리팹 루트에서 가져옵니다.
+        Rigidbody itemRigidbody =
+            newItem.GetComponent<Rigidbody>();
+
+        if (itemRigidbody == null)
+        {
+            Debug.LogError(
+                "ItemSpawner: 아이템 프리팹 루트에 Rigidbody가 필요합니다.",
+                newItem);
+
+            Destroy(newItem);
+            return false;
+        }
+
+        // 프리팹에 저장된 중력/동적 설정을 유지합니다.
+        // 생성 직후 기존 속도가 남아 있지 않도록 초기 속도만 지웁니다.
+        itemRigidbody.linearVelocity = Vector3.zero;
+        itemRigidbody.angularVelocity = Vector3.zero;
+        itemRigidbody.WakeUp();
 
         // 프리팹에 이동기가 없으면 추가합니다.
         spawnedItems.Add(newItem);
@@ -127,19 +132,17 @@ public class ItemSpawner : MonoBehaviour
         if (mover == null)
             mover = newItem.AddComponent<ConveyorItemMover>();
 
-        // 지정한 방향 기준점이 없으면 스포너의 앞 방향을 사용합니다.
         Vector3 direction = moveDirectionPoint != null
             ? moveDirectionPoint.forward
             : transform.forward;
 
-        // 이동기에도 회전 오프셋을 전달해 웨이포인트 이동 중 유지하게 합니다.
         mover.Initialize(
             conveyorManager,
             lineId,
             direction,
             rotationOffset);
 
-        // Item 컴포넌트가 있는 프리팹이면 종류를 설정합니다.
+        // Item 컴포넌트가 있으면 정상/불량을 무작위로 지정합니다.
         Item item = newItem.GetComponent<Item>();
 
         if (item != null)
@@ -151,8 +154,6 @@ public class ItemSpawner : MonoBehaviour
             item.itemType = randomType;
             item.shouldBeGrabbed = randomType == ItemType.Normal;
         }
-
-        lastMover = mover;
 
         return true;
     }
@@ -168,7 +169,6 @@ public class ItemSpawner : MonoBehaviour
         }
         spawnedItems.Clear();
         currentSpawnCount = 0;
-        lastMover = null;
 
         if (itemPrefab != null && spawnPoint != null && conveyorManager != null)
             StartCoroutine(SpawnRoutine());
