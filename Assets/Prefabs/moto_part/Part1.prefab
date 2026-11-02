@@ -10,15 +10,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1505835129191173737, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 0.28776
       objectReference: {fileID: 0}
     - target: {fileID: 1505835129191173737, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 1505835129191173737, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -14.74759
       objectReference: {fileID: 0}
     - target: {fileID: 1505835129191173737, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       propertyPath: m_LocalRotation.w
@@ -52,8 +52,7 @@ PrefabInstance:
       propertyPath: m_Name
       value: Part1
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 2077365297266256473, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
@@ -62,7 +61,10 @@ PrefabInstance:
       addedObject: {fileID: 5500713846012872336}
     - targetCorrespondingSourceObject: {fileID: 7624448211058901286, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       insertIndex: -1
-      addedObject: {fileID: -5277561018743324843}
+      addedObject: {fileID: -7390475622519186989}
+    - targetCorrespondingSourceObject: {fileID: 7624448211058901286, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4582534177808164532}
   m_SourcePrefab: {fileID: 100100000, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
 --- !u!1 &8073597444643262425 stripped
 GameObject:
@@ -87,7 +89,7 @@ MonoBehaviour:
   symmetryDeg: 0
   gripOffset: 0
   assemblyAngleError: 0
---- !u!114 &-5277561018743324843
+--- !u!114 &-7390475622519186989
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -96,8 +98,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 8073597444643262425}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fbc0ae53a41bbf340872d9cae6b3f9ba, type: 3}
+  m_Script: {fileID: 11500000, guid: 5d5678f73ff62c84695c1426768f534f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: RobotFactory.PartSupply::PartLoss
-  removableParts: []
-  removeIndex: 0
+  m_EditorClassIdentifier: Assembly-CSharp::ConveyorItemMover
+  moveSpeed: 2
+--- !u!114 &4582534177808164532
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8073597444643262425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 453336ce737e0fe4d846731653098a1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Item
+  shouldBeGrabbed: 0
+  itemType: 0
+  state: 0

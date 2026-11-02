@@ -3223,7 +3223,8 @@ Transform:
   m_LocalPosition: {x: 0.0136257475, y: -0.36101028, z: -0.0016838924}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 5371746780927453187}
   m_Father: {fileID: 3658621476630838981}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8471139313377715679
@@ -4440,7 +4441,6 @@ Transform:
   - {fileID: 7039782893294296027}
   - {fileID: 4431401037586811843}
   - {fileID: 1075047635498439844}
-  - {fileID: 5371746780927453187}
   - {fileID: 8955260600398109245}
   - {fileID: 8338502091211314676}
   - {fileID: 5657405509329207125}
@@ -5894,9 +5894,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8468661557839545491}
-  - component: {fileID: 8205976907076848631}
   - component: {fileID: 8873181308378193421}
-  - component: {fileID: 6975130757210783464}
+  - component: {fileID: 5300980707565627581}
+  - component: {fileID: 3803009373063264095}
   m_Layer: 0
   m_Name: moto_base
   m_TagString: Untagged
@@ -5932,28 +5932,6 @@ Transform:
   - {fileID: 940167399721979507}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!195 &8205976907076848631
-NavMeshAgent:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7416903146364144429}
-  m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.49
-  m_Speed: 1
-  m_Acceleration: 8
-  avoidancePriority: 50
-  m_AngularSpeed: 120
-  m_StoppingDistance: 0
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 1
-  m_AutoRepath: 1
-  m_Height: 0.6
-  m_BaseOffset: 0
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
 --- !u!114 &8873181308378193421
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5971,8 +5949,8 @@ MonoBehaviour:
   floorHeight: 0
   topHeight: 0
   holeCenter: {x: 0, y: 0, z: 0}
-  socket: {fileID: 0}
---- !u!114 &6975130757210783464
+  socket: {fileID: 1689116070833119752}
+--- !u!114 &5300980707565627581
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -5981,15 +5959,25 @@ MonoBehaviour:
   m_GameObject: {fileID: 7416903146364144429}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0517919f7fa54784b86843c172ecedc6, type: 3}
+  m_Script: {fileID: 11500000, guid: 5d5678f73ff62c84695c1426768f534f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BaseInfo
-  id: 
-  defectType: 0
-  floorHeight: 0
-  topHeight: 0
-  holeCenter: {x: 0, y: 0, z: 0}
-  socket: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::ConveyorItemMover
+  moveSpeed: 2
+--- !u!114 &3803009373063264095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7416903146364144429}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 453336ce737e0fe4d846731653098a1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Item
+  shouldBeGrabbed: 0
+  itemType: 0
+  state: 0
 --- !u!1 &7481963740539495550
 GameObject:
   m_ObjectHideFlags: 0
@@ -6270,12 +6258,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7928400925929155782}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.44394973, y: -0.064648785, z: -0.001001796}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.43032402, y: 0.2963615, z: 0.00068208575}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 3658621476630838981}
+  m_Father: {fileID: 8338502091211314676}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &6368526892320591393
 MeshFilter:
