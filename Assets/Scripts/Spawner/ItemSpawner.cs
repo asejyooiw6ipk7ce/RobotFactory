@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ItemSpawner : MonoBehaviour
@@ -37,6 +38,12 @@ public class ItemSpawner : MonoBehaviour
     // 지금까지 생성한 아이템 수입니다.
     private int currentSpawnCount;
 
+    // Last spawned item's mover (used to check whether the line is still occupied)
+    private ConveyorItemMover lastMover;
+
+    // Items spawned by this spawner (so Reset can remove them)
+    private readonly List<GameObject> spawnedItems = new List<GameObject>();
+
     private void Start()
     {
         if (itemPrefab == null)
@@ -71,7 +78,7 @@ public class ItemSpawner : MonoBehaviour
         while (currentSpawnCount < maxCount)
         {
             // 지정한 라인이 운전 중일 때만 생성합니다.
-            if (conveyorManager.IsLineRunning(lineId))
+            if (conveyorManager.IsLineRunning(lineId) && !IsLineOccupied())
             {
                 if (SpawnItem())
                     currentSpawnCount++;
@@ -84,6 +91,17 @@ public class ItemSpawner : MonoBehaviour
                 yield return new WaitForSeconds(0.5f);
             }
         }
+    }
+
+    // True while the last spawned item has not finished its waypoint path yet
+    private bool IsLineOccupied()
+    {
+        if (lastMover == null) return false;
+
+        Transform[] waypoints = conveyorManager.GetLineWaypoints(lineId);
+        if (waypoints == null || waypoints.Length == 0) return false;
+
+        return lastMover.CurrentWaypointIndex < waypoints.Length;
     }
 
     private bool SpawnItem()
@@ -101,6 +119,8 @@ public class ItemSpawner : MonoBehaviour
             spawnRotation);
 
         // 프리팹에 이동기가 없으면 추가합니다.
+        spawnedItems.Add(newItem);
+
         ConveyorItemMover mover =
             newItem.GetComponent<ConveyorItemMover>();
 
@@ -132,6 +152,25 @@ public class ItemSpawner : MonoBehaviour
             item.shouldBeGrabbed = randomType == ItemType.Normal;
         }
 
+        lastMover = mover;
+
         return true;
+    }
+
+    // Reset: remove spawned items, clear the count, and restart spawning
+    public void ClearSpawned()
+    {
+        StopAllCoroutines();
+
+        foreach (GameObject go in spawnedItems)
+        {
+            if (go != null) Destroy(go);
+        }
+        spawnedItems.Clear();
+        currentSpawnCount = 0;
+        lastMover = null;
+
+        if (itemPrefab != null && spawnPoint != null && conveyorManager != null)
+            StartCoroutine(SpawnRoutine());
     }
 }
