@@ -8,7 +8,7 @@ public partial class InspectRejectSequence : MonoBehaviour
     public GripperController gripper;
 
     [Header("목표 위치 및 폐기함 트랜스폼")]
-    public Transform pickPoint;   // 불량 부품 정지 위치 기준점
+    public Transform pickPoint;   // 불량 부품 정지 위치 기준점 (또는 부품 자체)
     public Transform rejectPose;  // 폐기 박스 기준 위치 (폐기함 없을 시 폴백)
     public Transform rejectBin;   // 폐기함(RejectBin) 루트 오브젝트
     public Transform targetPart;  // 현재 파지 대상 불량 부품 (미지정 시 자동 감지)
@@ -109,34 +109,98 @@ public partial class InspectRejectSequence : MonoBehaviour
     }
 
     /// <summary>
-    /// 대상 부품의 grap_platfrom_01에 BoxCollider를 보장하여 파지 안정성 확보
+    /// 대상 부품에 물리 콜라이더 및 Rigidbody를 보장하여 부품 결손(PartLoss) 시에도 안정적 파지 지원
     /// </summary>
     private void EnsurePlatformCollider(Transform part)
     {
         if (part == null) return;
+
+        // 1. Rigidbody 보장
+        var rb = part.GetComponent<Rigidbody>();
+        if (rb == null) rb = part.GetComponentInParent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = part.gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true;
+            rb.useGravity = false;
+        }
+
+        // 2. grap_platfrom_01 활성화 여부 확인 및 콜라이더 부여
         Transform graspPlatform = part.Find("grap_platfrom_01");
-        if (graspPlatform != null)
+        bool hasActivePlatform = (graspPlatform != null && graspPlatform.gameObject.activeInHierarchy);
+
+        if (hasActivePlatform)
         {
             var box = graspPlatform.GetComponent<BoxCollider>();
             if (box == null) box = graspPlatform.gameObject.AddComponent<BoxCollider>();
             box.size = new Vector3(0.035f, 0.040f, 0.040f);
             box.center = Vector3.zero;
         }
+
+        // 3. [부품 결손 PartLoss 대응] grap_platfrom_01이 비활성화되었을 경우 루트/자식 렌더러 바운즈 기반 콜라이더 자동 생성
+        var existingColliders = part.GetComponentsInChildren<Collider>(false);
+        if (existingColliders == null || existingColliders.Length == 0)
+        {
+            var renderers = part.GetComponentsInChildren<Renderer>(false);
+            if (renderers != null && renderers.Length > 0)
+            {
+                Bounds b = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    b.Encapsulate(renderers[i].bounds);
+                }
+
+                var rootBox = part.GetComponent<BoxCollider>();
+                if (rootBox == null) rootBox = part.gameObject.AddComponent<BoxCollider>();
+                rootBox.center = part.InverseTransformPoint(b.center);
+                Vector3 localSize = part.InverseTransformVector(b.size);
+                rootBox.size = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            }
+            else
+            {
+                var rootBox = part.GetComponent<BoxCollider>();
+                if (rootBox == null) rootBox = part.gameObject.AddComponent<BoxCollider>();
+                rootBox.size = new Vector3(0.04f, 0.04f, 0.04f);
+                rootBox.center = Vector3.zero;
+            }
+        }
     }
 
     /// <summary>
-    /// 픽업 대상 부품 탐색 및 반환
+    /// 픽업 대상 부품 탐색 및 반환 (PickPoint 직접 할당, OverlapSphere, 렌더러 탐색 다층 지원)
     /// </summary>
     public Transform DetectOrGetTargetPart()
     {
+        // 1. 이미 유효한 targetPart가 할당되어 있다면 사용
         if (targetPart != null && targetPart.gameObject.activeInHierarchy)
         {
             EnsurePlatformCollider(targetPart);
             return targetPart;
         }
 
+        // 2. pickPoint 자체가 부품(또는 부품 루트)인 경우 직접 인식
+        if (pickPoint != null && pickPoint.root != transform.root && (ik == null || pickPoint.root != ik.transform.root))
+        {
+            var rbOnPick = pickPoint.GetComponentInParent<Rigidbody>();
+            if (rbOnPick != null && rbOnPick.transform.root != transform.root)
+            {
+                targetPart = rbOnPick.transform;
+                EnsurePlatformCollider(targetPart);
+                return targetPart;
+            }
+
+            var rends = pickPoint.GetComponentsInChildren<Renderer>(false);
+            if (rends != null && rends.Length > 0)
+            {
+                targetPart = pickPoint;
+                EnsurePlatformCollider(targetPart);
+                return targetPart;
+            }
+        }
+
+        // 3. 픽업 위치 주변 OverlapSphere 탐색 (반경 0.35m)
         Vector3 searchCenter = pickPoint != null ? pickPoint.position : transform.position;
-        Collider[] hits = Physics.OverlapSphere(searchCenter, 0.25f);
+        Collider[] hits = Physics.OverlapSphere(searchCenter, 0.35f);
         Transform found = null;
 
         foreach (var col in hits)
@@ -148,6 +212,29 @@ public partial class InspectRejectSequence : MonoBehaviour
             {
                 found = col.attachedRigidbody.transform;
                 break;
+            }
+            found = col.transform.root != col.transform ? col.transform.root : col.transform;
+            break;
+        }
+
+        // 4. 콜라이더가 비활성화된 경우 씬 내 렌더러 거리 기반 폴백 탐색
+        if (found == null)
+        {
+            var allRenderers = FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None);
+            float bestDist = 0.45f;
+            foreach (var rend in allRenderers)
+            {
+                if (!rend.gameObject.activeInHierarchy) continue;
+                if (rend.transform.root == transform.root) continue;
+                if (ik != null && rend.transform.root == ik.transform.root) continue;
+
+                float d = Vector3.Distance(rend.transform.position, searchCenter);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    var rb = rend.GetComponentInParent<Rigidbody>();
+                    found = (rb != null) ? rb.transform : (rend.transform.parent != null ? rend.transform.parent : rend.transform);
+                }
             }
         }
 
@@ -161,7 +248,7 @@ public partial class InspectRejectSequence : MonoBehaviour
     }
 
     /// <summary>
-    /// 부품의 grap_platfrom_01 허브 또는 픽업 기준점의 월드 파지 좌표 산출
+    /// 부품의 grap_platfrom_01 허브 또는 활성 렌더러 바운즈 중심의 월드 파지 좌표 산출
     /// </summary>
     public Vector3 GetPickPosition()
     {
@@ -169,11 +256,24 @@ public partial class InspectRejectSequence : MonoBehaviour
         if (part != null)
         {
             Transform graspPlatform = part.Find("grap_platfrom_01");
-            Vector3 basePos = (graspPlatform != null && graspPlatform.gameObject.activeInHierarchy)
-                ? graspPlatform.position
-                : part.position + new Vector3(0f, 0.03f, 0f);
+            if (graspPlatform != null && graspPlatform.gameObject.activeInHierarchy)
+            {
+                return new Vector3(graspPlatform.position.x, graspPlatform.position.y + pickHeightOffset, graspPlatform.position.z);
+            }
 
-            return new Vector3(basePos.x, basePos.y + pickHeightOffset, basePos.z);
+            // grap_platfrom_01이 비활성화된 경우, 활성 자식 렌더러들의 중심 좌표 산출
+            var renderers = part.GetComponentsInChildren<Renderer>(false);
+            if (renderers != null && renderers.Length > 0)
+            {
+                Bounds b = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    b.Encapsulate(renderers[i].bounds);
+                }
+                return new Vector3(b.center.x, b.center.y + pickHeightOffset, b.center.z);
+            }
+
+            return new Vector3(part.position.x, part.position.y + 0.03f + pickHeightOffset, part.position.z);
         }
 
         if (pickPoint != null)
@@ -236,6 +336,19 @@ public partial class InspectRejectSequence : MonoBehaviour
 
         Transform baseTr = (ik != null ? ik.transform : transform);
         return baseTr.position + baseTr.rotation * new Vector3(0.93f, 0.65f, -0.30f);
+    }
+
+    /// <summary>
+    /// 부품이 현재 그리퍼에 결합(Attach)되어 들려있는 상태인지 확인
+    /// </summary>
+    public bool IsPartAttachedToGripper()
+    {
+        if (targetPart == null) return false;
+        Transform parentPoint = (gripper != null && gripper.attachPoint != null)
+            ? gripper.attachPoint
+            : (ik != null && ik.tip != null ? ik.tip : null);
+
+        return parentPoint != null && (targetPart.parent == parentPoint || targetPart.IsChildOf(parentPoint));
     }
 
     /// <summary>
@@ -353,7 +466,8 @@ public partial class InspectRejectSequence : MonoBehaviour
                 yield return gripper.Close();
                 AttachPartToGripper();
 
-                if (gripper.LastGraspOK || targetPart != null)
+                // 부품이 그리퍼에 결합되었거나 접촉 판정이 성공했으면 파지 성공
+                if (IsPartAttachedToGripper() || gripper.LastGraspOK)
                 {
                     grasped = true;
                     break;

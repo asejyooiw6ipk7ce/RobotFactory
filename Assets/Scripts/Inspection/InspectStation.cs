@@ -1,102 +1,160 @@
 using System.Collections;
 using UnityEngine;
 
-// ºÎÇ° µµÂø(ÀÌ ½ºÅ©¸³Æ®°¡ °¨Áö) 
-// -> º§Æ® Á¤Áö(ConveyorController.StopConveyor)
-// -> ³¡³­ ÈÄ -> ½ºÅäÆÛ ¿Ã¸®±â(PartStopper.Stop) -> ¿Ã¶ó°£ µÚ -> °Ë»ç ÀÚ¼¼ ÀÌµ¿(ArmIK.MoveTo)
-// -> °Ë»ç(StopperController ²ô±â;OnTriggerExit ¾È¾²±â À§ÇØ) -> º§Æ® Àç°³(ConveyorController.ResumeConveyor) -> ³¡³­ ÈÄ -> ½ºÅäÆÛ ³»¸®±â(PartStopper.Resume)
+// ë¶€í’ˆ ë„ì°©(OnTriggerEnter ê°ì§€)
+// -> ë²¨íŠ¸ ì •ì§€(ConveyorController.StopConveyor)
+// -> ìŠ¤í† í¼ ì˜¬ë¦¬ê¸°(PartStopper.Stop)
+// -> ê²€ì‚¬ ìì„¸ ì´ë™(ArmIK.MoveTo - ì„ ì¶©ëŒ ë°©ì§€ ìƒê³µ ëŒ€ê¸°)
+// -> ê²€ì‚¬ (PartInfo ê¸°ë°˜ ë¶ˆëŸ‰ ìë™ íŒì • ë˜ëŠ” ì„ì‹œ ì„¤ì •ê°’)
+// -> ë¶ˆëŸ‰ ì‹œ: InspectRejectSequence.Reject() íê¸°
+// -> ì´ë²¤íŠ¸ ë°œí–‰(InspectEventBus.Publish)
+// -> ë²¨íŠ¸ ì¬ê°œ(ConveyorController.ResumeConveyor) ë° ìŠ¤í† í¼ ë‚´ë¦¬ê¸°(PartStopper.Resume)
 
 public class InspectStation : MonoBehaviour
 {
+    [Header("ì»¨ë² ì´ì–´ ë° ë¡œë´‡ ì œì–´ ì—°ê²°")]
     public ConveyorController belt;
     public PartStopper stopper;
     public ArmIK ik;
 
-    [Header("°Ë»ç ÀÚ¼¼ ÁÂÇ¥")]
+    [Header("ê²€ì‚¬ ìì„¸ ì¢Œí‘œ ë° ë†’ì´")]
     public Transform inspectPose;
+    public float inspectHeightOffset = 0.15f; // inspectPose ê¸°ì¤€ ìƒê³µ ì•ˆì „ ëŒ€ê¸° ë†’ì´ (ë¶€í’ˆ ì¶©ëŒ ë°©ì§€)
 
     private bool isInspecting = false;
-    public int robotId;
+    public int robotId = 1;
+
+    [Header("ìƒíƒœ ëŒ€ì‹œë³´ë“œ ë°˜ì˜")]
+    public StationId stationId = StationId.Station1;
+
+    [Tooltip("ì„ì‹œ íŒì • ê²°ê³¼ (ë¶€í’ˆì— PartInfoê°€ ì—†ì„ ë•Œ ëŒ€ì²´ ì‚¬ìš©)")]
+    public InspectResult testResult = InspectResult.Pass;
+    public DefectType testDefect = DefectType.AngleError;
+    public bool autoDetectPartDefect = true; // ë¶€í’ˆì˜ PartInfo.defectType ìë™ íŒì • ì—¬ë¶€
+
+    private int serial;
+
+    [Header("íê¸° ì‹œí€€ìŠ¤ ì—°ê²°")]
+    public InspectRejectSequence reject;
+
+    [Header("ì—ëŸ¬ ë° ì¤‘ë‹¨ ìƒíƒœ")]
+    private bool failed = false; // íê¸° ì‹¤íŒ¨ ë“±ìœ¼ë¡œ ë©ˆì¶˜ ìƒíƒœ
 
     [ContextMenu("Test Inspect")]
     void TestInspect()
     {
-        StartCoroutine(InspectSequence());
+        if (isInspecting) return;
+        StartCoroutine(InspectSequence(null, null));
     }
 
-    [Header("»óÅÂ ´ë½Ãº¸µå ¹İ¿µ")]
-    public StationId stationId = StationId.Station1;
-
-    [Tooltip("ÀÓ½Ã ÆÇÁ¤ °á°ú (½ÇÁ¦ ÆÇÁ¤ ºÙÀÌ±â Àü±îÁö »ç¿ë)")]
-    public InspectResult testResult = InspectResult.Pass;
-    public DefectType testDefect = DefectType.AngleError;
-
-    private int serial;
-
-    [Header("°Ë»ç °á°ú")]
-    public InspectRejectSequence reject;
-
-    [Header("»ç¶÷ÀÌ ºÎÇ°À» Ä¡¿î µÚ ½ºÅ×ÀÌ¼Ç ´Ù½Ã »ç¿ë")]
-    private bool failed = false;   // Æó±â ½ÇÆĞ·Î ¸ØÃá »óÅÂ
-
-    [ContextMenu("Clear Failure")]     // ÀÎ½ºÆåÅÍ ? ¸Ş´º¿¡¼­ ½ÇÇàÇÒ ¼ö ÀÖ°Ô ÇÔ
+    [ContextMenu("Clear Failure")]
     public void ClearFailure()
     {
         if (!failed) return;
         failed = false;
         isInspecting = false;
-        belt.ResumeConveyor();
-        StartCoroutine(stopper.Resume());
+        if (belt != null) belt.ResumeConveyor();
+        if (stopper != null) StartCoroutine(stopper.Resume());
+        RobotStatusTracker.Set(robotId, RobotState.Idle);
     }
 
-    //ºÎÇ° °Ë»çÁöÁ¡ µµÂø °¨Áö
+    // ë¶€í’ˆ ê²€ì‚¬ì§€ì  ë„ì°© ê°ì§€
     public void OnTriggerEnter(Collider other)
-    { 
-        if(isInspecting) return;
-        StartCoroutine(InspectSequence());
+    {
+        if (isInspecting || failed) return;
+
+        // ë„ì°©í•œ ë¶€í’ˆ ê°ì§€ (ë¡œë´‡ ë³¸ì²´ ì œì™¸)
+        if (ik != null && other.transform.root == ik.transform.root) return;
+        if (other.transform.root == transform.root) return;
+
+        Transform arrivedPart = (other.attachedRigidbody != null)
+            ? other.attachedRigidbody.transform
+            : (other.transform.parent != null ? other.transform.parent : other.transform);
+
+        PartInfo info = arrivedPart.GetComponentInChildren<PartInfo>();
+        if (info == null && other.attachedRigidbody != null)
+        {
+            info = other.attachedRigidbody.GetComponent<PartInfo>();
+        }
+
+        StartCoroutine(InspectSequence(arrivedPart, info));
     }
 
-    public IEnumerator InspectSequence()
+    public IEnumerator InspectSequence(Transform arrivedPart, PartInfo info)
     {
-        // ºÎÇ° µµÂø °¨Áö
-        isInspecting = true; 
+        isInspecting = true;
 
-        // 1. º§Æ® Á¤Áö
-        belt.StopConveyor();
+        // 1. ë²¨íŠ¸ ì •ì§€
+        if (belt != null) belt.StopConveyor();
 
-        // 2. ½ºÅäÆÛ ¿Ã¸®±â'
-        yield return stopper.Stop();
-
-        // 3. °Ë»ç ÀÚ¼¼ ÀÌµ¿
-        RobotStatusTracker.Set(robotId, RobotState.Moving);
-        //Dashboard°¡ RobotStateChanged¸¦ ±¸µ¶ -> Dashboard°¡ »óÅÂ ÀúÀåÇÏ°í È­¸é °»½Å ; robots.Apply() -> Refresh();
-        yield return ik.MoveTo(inspectPose.position);
-
-        // 4. °Ë»ç
-        RobotStatusTracker.Set(robotId, RobotState.Working);
-        yield return new WaitForSeconds(5f);  //TODO inspection wait
-
-        // °Ë»ç °á°ú°¡ FailÀÌ¸é Æó±â ÈÄ Àç°³
-        if (testResult == InspectResult.Fail)
+        // 2. ìŠ¤í† í¼ ì˜¬ë¦¬ê¸°
+        if (stopper != null)
         {
+            yield return stopper.Stop();
+        }
+
+        // 3. ê²€ì‚¬ ìì„¸ ì´ë™ (ë¶€í’ˆ ì„ ì¶©ëŒ ë°©ì§€ë¥¼ ìœ„í•´ inspectPose ìƒê³µì—ì„œ ìˆ˜ì§ í•˜í–¥ ëŒ€ê¸°)
+        RobotStatusTracker.Set(robotId, RobotState.Moving);
+
+        if (ik != null && inspectPose != null)
+        {
+            Vector3 safeInspectPos = inspectPose.position + Vector3.up * inspectHeightOffset;
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.MoveTo(safeInspectPos, null);
+        }
+
+        // 4. ê²€ì‚¬ ì§„í–‰
+        RobotStatusTracker.Set(robotId, RobotState.Working);
+        yield return new WaitForSeconds(1.5f); // ê²€ì‚¬ ëŒ€ê¸°
+
+        // ë¶ˆëŸ‰ ì—¬ë¶€ íŒì • (ë„ì°©í•œ ë¶€í’ˆì˜ PartInfo ìš°ì„  ë°˜ì˜)
+        bool isFail = false;
+        DefectType defect = DefectType.None;
+
+        if (autoDetectPartDefect && info != null)
+        {
+            if (info.defectType != DefectType.None)
+            {
+                isFail = true;
+                defect = info.defectType;
+            }
+        }
+        else
+        {
+            isFail = (testResult == InspectResult.Fail);
+            defect = isFail ? testDefect : DefectType.None;
+        }
+
+        InspectResult finalResult = isFail ? InspectResult.Fail : InspectResult.Pass;
+
+        // 5. ê²€ì‚¬ ê²°ê³¼ê°€ Failì´ë©´ íê¸° ì‹œí€€ìŠ¤ ì‹¤í–‰
+        if (finalResult == InspectResult.Fail && reject != null)
+        {
+            if (arrivedPart != null)
+            {
+                reject.SetTargetPart(arrivedPart);
+            }
+
             yield return reject.Reject();
 
             if (!reject.LastRejectOK)
             {
-                Debug.LogError("[InspectStation] Æó±â ½ÇÆĞ - ºÎÇ°ÀÌ º§Æ® À§¿¡ ³²¾Æ ÀÖÀ½");
+                Debug.LogError("[InspectStation] íê¸° ì‹¤íŒ¨ - ë¶€í’ˆì´ ë²¨íŠ¸ ìœ„ì— ë‚¨ì•„ ìˆìŒ. ê´€ë¦¬ì ì¡°ì¹˜ê°€ í•„ìš”í•©ë‹ˆë‹¤.");
                 failed = true;
-                yield break;   // ¾Æ·¡ Àç°³ ÄÚµå¸¦ ½ÇÇàÇÏÁö ¾ÊÀ½
+                RobotStatusTracker.Set(robotId, RobotState.Error);
+                yield break; // ë²¨íŠ¸ ì¬ê°œí•˜ì§€ ì•Šê³  ì •ì§€ ìƒíƒœ ìœ ì§€
             }
         }
-        
-        //°Ë»ç°¡ ³¡³­ µÚ ÀÌº¥Æ® ¹ßÇà
-        var defect = testResult == InspectResult.Pass ? DefectType.None : testDefect;
-        InspectEventBus.Publish(new InspectEvent($"P{++serial:0000}", stationId, testResult, defect, Time.time));
 
-        // 5. º§Æ® Àç°³
+        // 6. ê²€ì‚¬ ì™„ë£Œ ì´ë²¤íŠ¸ ë°œí–‰
+        string partId = (info != null && !string.IsNullOrEmpty(info.id)) ? info.id : $"P{++serial:0000}";
+        InspectEventBus.Publish(new InspectEvent(partId, stationId, finalResult, defect, Time.time));
+
+        // 7. ë²¨íŠ¸ ì¬ê°œ ë° ìŠ¤í† í¼ ë‚´ë¦¬ê¸°
         RobotStatusTracker.Set(robotId, RobotState.Idle);
-        belt.ResumeConveyor();
-        yield return stopper.Resume();
+        if (belt != null) belt.ResumeConveyor();
+        if (stopper != null) yield return stopper.Resume();
 
         isInspecting = false;
     }
