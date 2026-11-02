@@ -32,8 +32,11 @@ public class InspectRejectSequence : MonoBehaviour
 
         for(int attempt = 1;attempt <= maxGraspTries; attempt++)
         {
+
+            Debug.Log($"[Reject] pick(world)={pick}  pickPoint.position={pickPoint.position}");
             //2. 내려가
             yield return ik.MoveLinear(pick, moveSpeed);
+            Debug.Log($"[Reject] tip={ik.tip.position}  posErr={ik.PositionError:F4}  solveOk={ik.LastSolveOk}");
 
             //3. gripper.Close() ; 잡기
             yield return gripper.Close();
