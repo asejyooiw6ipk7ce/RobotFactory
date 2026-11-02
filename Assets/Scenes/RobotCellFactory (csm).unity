@@ -202,17 +202,6 @@ MonoBehaviour:
   station3DefectRate: 0.1
   minInterval: 1
   maxInterval: 2
---- !u!114 &399592385 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-  m_PrefabInstance: {fileID: 1208536850}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7422b31c5308aa240b04164a32a011d8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ConveyorManager
 --- !u!1 &694208348
 GameObject:
   m_ObjectHideFlags: 0
@@ -520,8 +509,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23f389985ff35e749aefc6ff0c5b5822, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InspectStation
-  belt: {fileID: 1208536852}
-  stopper: {fileID: 2088236202}
+  belt: {fileID: 0}
+  stopper: {fileID: 0}
   ik: {fileID: 1300464594}
   inspectPose: {fileID: 951458694}
   robotId: 1
@@ -559,74 +548,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 901069219}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1208536850
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3567574241119708909, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4675133193313771381, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_Name
-      value: Conveyor
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
---- !u!114 &1208536852 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1141303382309865580, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-  m_PrefabInstance: {fileID: 1208536850}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: efcd78da2287c3a44b8128d837068b82, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ConveyorController
 --- !u!1001 &1300464593
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1551,71 +1472,6 @@ Transform:
   - {fileID: 356436506}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1777915002
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 1347157081329836052, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: conveyorManager
-      value: 
-      objectReference: {fileID: 399592385}
-    - target: {fileID: 2919070260653855085, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_Name
-      value: Spawner
-      objectReference: {fileID: 0}
-    - target: {fileID: 2949397204198766371, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: conveyorManager
-      value: 
-      objectReference: {fileID: 399592385}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 3.03055
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -12.47879
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4648136682754266671, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
 --- !u!1 &1851016738
 GameObject:
   m_ObjectHideFlags: 0
@@ -1812,7 +1668,7 @@ MonoBehaviour:
   camera3Inspector: {fileID: 0}
   autoStartWhenBothPartsReady: 1
   autoResetClawOnAssembleStart: 1
-  outputConveyor: {fileID: 1208536852}
+  outputConveyor: {fileID: 0}
   outputStopper: {fileID: 0}
   autoDetectClawYaw: 1
   clawYawOffset: 0
@@ -1850,25 +1706,12 @@ MonoBehaviour:
   homeJointSpeed: 90
   stationId: 1
   robotId: 2
---- !u!114 &2088236202 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 6078184918730043880, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-  m_PrefabInstance: {fileID: 1208536850}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 29b468e59f6be8749a521ef80b957c8e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PartStopper
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1851016741}
   - {fileID: 694208351}
-  - {fileID: 1208536850}
   - {fileID: 296695742}
   - {fileID: 1628571699}
   - {fileID: 1740062944}
-  - {fileID: 1777915002}

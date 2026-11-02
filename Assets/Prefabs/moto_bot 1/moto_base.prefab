@@ -5897,6 +5897,8 @@ GameObject:
   - component: {fileID: 8873181308378193421}
   - component: {fileID: 5300980707565627581}
   - component: {fileID: 3803009373063264095}
+  - component: {fileID: 3263473967777867109}
+  - component: {fileID: 2714510857684870253}
   m_Layer: 0
   m_Name: moto_base
   m_TagString: Untagged
@@ -5962,7 +5964,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d5678f73ff62c84695c1426768f534f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConveyorItemMover
-  moveSpeed: 2
+  waypointReachDistance: 0.03
+  rotateAlongPath: 0
+  rotationSpeed: 8
 --- !u!114 &3803009373063264095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5978,6 +5982,54 @@ MonoBehaviour:
   shouldBeGrabbed: 0
   itemType: 0
   state: 0
+--- !u!65 &3263473967777867109
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7416903146364144429}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 0.59268814, z: 1.6544476}
+  m_Center: {x: -0, y: 0.31240436, z: -0.3175478}
+--- !u!54 &2714510857684870253
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7416903146364144429}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &7481963740539495550
 GameObject:
   m_ObjectHideFlags: 0
