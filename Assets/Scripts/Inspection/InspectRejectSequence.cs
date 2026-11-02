@@ -109,7 +109,7 @@ public partial class InspectRejectSequence : MonoBehaviour
     }
 
     /// <summary>
-    /// 대상 부품에 물리 콜라이더 및 Rigidbody를 보장하여 부품 결손(PartLoss) 시에도 안정적 파지 지원
+    /// 대상 부품에 물리 콜라이더 및 Rigidbody를 보장하고 거대 콜라이더를 보정하여 결손(PartLoss) 시에도 안정적 파지 지원
     /// </summary>
     private void EnsurePlatformCollider(Transform part)
     {
@@ -162,6 +162,19 @@ public partial class InspectRejectSequence : MonoBehaviour
                 if (rootBox == null) rootBox = part.gameObject.AddComponent<BoxCollider>();
                 rootBox.size = new Vector3(0.04f, 0.04f, 0.04f);
                 rootBox.center = Vector3.zero;
+            }
+        }
+
+        // 4. [비정형/대형 콜라이더 보정] 0.25m 이상의 과도하게 큰 프리팹 콜라이더(예: Part1 1m 박스)가 파지 손가락에 걸려 튕기는 것 방지
+        foreach (var col in part.GetComponentsInChildren<BoxCollider>(false))
+        {
+            if (col.size.x > 0.25f || col.size.y > 0.25f || col.size.z > 0.25f)
+            {
+                col.size = new Vector3(
+                    Mathf.Min(col.size.x, 0.08f),
+                    Mathf.Min(col.size.y, 0.08f),
+                    Mathf.Min(col.size.z, 0.08f)
+                );
             }
         }
     }
@@ -382,11 +395,25 @@ public partial class InspectRejectSequence : MonoBehaviour
     /// <summary>
     /// 폐기함 상공에서 부품 결합을 해제하고 중력 및 하향 초속을 부여하여 자연스러운 물리 낙하 보장
     /// </summary>
-    public void ReleasePartWithGravity()
+    public void ReleasePartWithGravity(out string releasedPartId, out DefectType releasedDefect)
     {
+        releasedPartId = "DISCARDED_PART";
+        releasedDefect = DefectType.None;
+
         Transform part = targetPart;
         if (part != null)
         {
+            var info = part.GetComponentInChildren<PartInfo>();
+            if (info != null)
+            {
+                releasedPartId = !string.IsNullOrEmpty(info.id) ? info.id : part.name;
+                releasedDefect = info.defectType;
+            }
+            else
+            {
+                releasedPartId = part.name;
+            }
+
             part.SetParent(null, true);
             var rb = part.GetComponent<Rigidbody>();
             if (rb != null)
@@ -397,6 +424,11 @@ public partial class InspectRejectSequence : MonoBehaviour
             }
             targetPart = null;
         }
+    }
+
+    public void ReleasePartWithGravity()
+    {
+        ReleasePartWithGravity(out _, out _);
     }
 
     /// <summary>
@@ -517,11 +549,13 @@ public partial class InspectRejectSequence : MonoBehaviour
         {
             yield return gripper.Open();
         }
-        ReleasePartWithGravity();
+        ReleasePartWithGravity(out string discardedPartId, out DefectType discardedDefect);
         yield return new WaitForSeconds(0.5f);
 
-        // 7. 폐기 카운트 집계
+        // 7. 폐기 카운트 집계 및 이벤트 버스 발행
         ProcessCounters.Add(CounterType.Discarded);
+        InspectEventBus.PublishExit(new PartExitEvent(discardedPartId, ExitReason.Discarded, discardedDefect, Time.time));
+        Debug.LogWarning($"[InspectRejectSequence] 📢 폐기 배출 이벤트 발행 완료: {discardedPartId} (불량: {discardedDefect})");
 
         // 8. 홈 대기 자세로 복귀 (상공에서 바로 안전 복귀하므로 벽 충돌 없음)
         SetState("8. 대기 자세 복귀");

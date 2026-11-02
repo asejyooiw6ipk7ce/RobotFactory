@@ -258,10 +258,12 @@ public partial class InspectRejectSequence
         }
 
         if (gripper != null) yield return gripper.Open();
-        ReleasePartWithGravity();
+        ReleasePartWithGravity(out string discardedPartId, out DefectType discardedDefect);
         yield return new WaitForSeconds(0.5f);
 
+        // 폐기 카운트 집계 및 배출 이벤트 발행
         ProcessCounters.Add(CounterType.Discarded);
+        InspectEventBus.PublishExit(new PartExitEvent(discardedPartId, ExitReason.Discarded, discardedDefect, Time.time));
 
         if (ik != null)
         {
@@ -353,4 +355,3 @@ public partial class InspectRejectSequence
 
     #endregion
 }
-
