@@ -238,7 +238,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b381dabd473dee4caaf5b40489dae97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemSpawner
-  itemPrefab: {fileID: 7624448211058901286, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
+  itemPrefab: {fileID: 8073597444643262425, guid: e1f8183518a0e3f43a77b35e7efdc494, type: 3}
   spawnPoint: {fileID: 4243883089910336487}
   maxCount: 20
   spawnInterval: 2
