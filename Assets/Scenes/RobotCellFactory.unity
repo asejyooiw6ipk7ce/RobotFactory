@@ -898,6 +898,7 @@ MonoBehaviour:
   stationId: 0
   testResult: 0
   testDefect: 2
+  reject: {fileID: 0}
 --- !u!1 &931548187
 GameObject:
   m_ObjectHideFlags: 0
@@ -944,7 +945,7 @@ GameObject:
   m_Component:
   - component: {fileID: 951458694}
   m_Layer: 0
-  m_Name: InspectPose
+  m_Name: pickPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1225,6 +1226,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3730000569208644922, guid: 811faa840f950944f9c89570dfc6244a, type: 3}
   m_PrefabInstance: {fileID: 1300464593}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1300464596 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4831014747622002404, guid: 811faa840f950944f9c89570dfc6244a, type: 3}
+  m_PrefabInstance: {fileID: 1300464593}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 557de97dc3a66724ab7f582e9d0f40fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GripperController
 --- !u!1 &1337461992
 GameObject:
   m_ObjectHideFlags: 0
@@ -1304,6 +1316,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6185e905f221c74389bde0d56182fa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InspectRejectSequence
+  ik: {fileID: 0}
+  gripper: {fileID: 1300464596}
+  pickPoint: {fileID: 951458694}
+  rejectPose: {fileID: 1992416190}
+  liftHeight: 0.1
+  moveSpeed: 0.2
+  maxGraspTries: 100
 --- !u!1 &1433068740
 GameObject:
   m_ObjectHideFlags: 0
