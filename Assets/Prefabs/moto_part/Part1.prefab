@@ -52,13 +52,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: Part1
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 2077365297266256473, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 7624448211058901286, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 5500713846012872336}
+    - targetCorrespondingSourceObject: {fileID: 7624448211058901286, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -5277561018743324843}
   m_SourcePrefab: {fileID: 100100000, guid: afe0ab7a23f2a804b83157d850fb077c, type: 3}
 --- !u!1 &8073597444643262425 stripped
 GameObject:
@@ -83,3 +87,17 @@ MonoBehaviour:
   symmetryDeg: 0
   gripOffset: 0
   assemblyAngleError: 0
+--- !u!114 &-5277561018743324843
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8073597444643262425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbc0ae53a41bbf340872d9cae6b3f9ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RobotFactory.PartSupply::PartLoss
+  removableParts: []
+  removeIndex: 0

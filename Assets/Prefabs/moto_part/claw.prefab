@@ -822,6 +822,7 @@ GameObject:
   - component: {fileID: 8859386972642486816}
   - component: {fileID: 2077365297266256473}
   - component: {fileID: 958467679982942932}
+  - component: {fileID: 8730576204757692276}
   m_Layer: 0
   m_Name: claw
   m_TagString: Untagged
@@ -837,7 +838,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7624448211058901286}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -911,3 +912,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConveyorItemMover
   moveSpeed: 2
+--- !u!114 &8730576204757692276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7624448211058901286}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fbc0ae53a41bbf340872d9cae6b3f9ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RobotFactory.PartSupply::PartLoss
+  removableParts:
+  - {fileID: 4306945175783879182}
+  removeIndex: 0
