@@ -246,6 +246,47 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!4 &1195942088 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7767125747766869847, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+  m_PrefabInstance: {fileID: 2028093245}
+  m_PrefabAsset: {fileID: 0}
+--- !u!23 &1735738856 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 5265341956738977379, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+  m_PrefabInstance: {fileID: 2028093245}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1749314939
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1749314940}
+  m_Layer: 0
+  m_Name: ConveyorManger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1749314940
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1749314939}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1195942088}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1851016738
 GameObject:
   m_ObjectHideFlags: 0
@@ -435,11 +476,89 @@ PrefabInstance:
       propertyPath: m_Name
       value: Conveyor(csm)
       objectReference: {fileID: 0}
+    - target: {fileID: 7488163732690770876, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 7488163732690770876, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.23694001
+      objectReference: {fileID: 0}
+    - target: {fileID: 7488163732690770876, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2.3910942
+      objectReference: {fileID: 0}
+    - target: {fileID: 7488163732690770876, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -15.587
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 7767125747766869847, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2109541635}
+    - targetCorrespondingSourceObject: {fileID: 7767125747766869847, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1749314940}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5892863bf049d8c4380d42c70d8ba345, type: 3}
+--- !u!1 &2109541634
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2109541635}
+  - component: {fileID: 2109541636}
+  m_Layer: 0
+  m_Name: ConveyorManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2109541635
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109541634}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.99110985, y: 0, z: -2.330429}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1195942088}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2109541636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2109541634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7422b31c5308aa240b04164a32a011d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ConveyorManager
+  lines:
+  - lineId: 0
+    beltRenderers:
+    - {fileID: 1735738856}
+    speed: 0
+  - lineId: 0
+    beltRenderers: []
+    speed: 0
+  - lineId: 0
+    beltRenderers: []
+    speed: 0
+  startOnAwake: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
