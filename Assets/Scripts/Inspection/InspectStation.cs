@@ -33,6 +33,24 @@ public class InspectStation : MonoBehaviour
 
     private int serial;
 
+    [Header("검사 결과")]
+    public InspectRejectSequence reject;
+    // Last inspection result (ProcessController checks this to decide discard)
+    public InspectResult LastResult { get; private set; }
+
+    [Header("사람이 부품을 치운 뒤 스테이션 다시 사용")]
+    private bool failed = false;   // 폐기 실패로 멈춘 상태
+
+    [ContextMenu("Clear Failure")]     // 인스펙터 ? 메뉴에서 실행할 수 있게 함
+    public void ClearFailure()
+    {
+        if (!failed) return;
+        failed = false;
+        isInspecting = false;
+        belt.ResumeConveyor();
+        StartCoroutine(stopper.Resume());
+    }
+
     //부품 검사지점 도착 감지
     public void OnTriggerEnter(Collider other)
     { 
@@ -40,7 +58,7 @@ public class InspectStation : MonoBehaviour
         StartCoroutine(InspectSequence());
     }
 
-    public IEnumerator InspectSequence()
+    public IEnumerator InspectSequence(Item item = null)
     {
         // 부품 도착 감지
         isInspecting = true; 
@@ -58,10 +76,33 @@ public class InspectStation : MonoBehaviour
 
         // 4. 검사
         RobotStatusTracker.Set(robotId, RobotState.Working);
-        yield return new WaitForSeconds(5f);  //TODO 검사
+        // 4. Rule-based judgement. For a claw (Item), itemType decides pass/fail.
+        //    Without an item (trigger path) the test values are used as before.
+        InspectResult result = testResult;
+        DefectType defect = testDefect;
+        if (item != null)
+        {
+            bool isDefective = item.itemType == ItemType.Defective;
+            result = isDefective ? InspectResult.Fail : InspectResult.Pass;
+            defect = isDefective ? testDefect : DefectType.None;
+        }
+        LastResult = result;
+
+        // 검사 결과가 Fail이면 폐기 후 재개
+        if (result == InspectResult.Fail)
+        {
+            yield return reject.Reject();
+
+            if (!reject.LastRejectOK)
+            {
+                Debug.LogError("[InspectStation] 폐기 실패 - 부품이 벨트 위에 남아 있음");
+                failed = true;
+                yield break;   // 아래 재개 코드를 실행하지 않음
+            }
+        }
+        
         //검사가 끝난 뒤 이벤트 발행
-        var defect = testResult == InspectResult.Pass ? DefectType.None : testDefect;
-        InspectEventBus.Publish(new InspectEvent($"P{++serial:0000}", stationId, testResult, defect, Time.time));
+        InspectEventBus.Publish(new InspectEvent($"P{++serial:0000}", stationId, result, defect, Time.time));
 
         // 5. 벨트 재개
         RobotStatusTracker.Set(robotId, RobotState.Idle);
@@ -69,5 +110,16 @@ public class InspectStation : MonoBehaviour
         yield return stopper.Resume();
 
         isInspecting = false;
+    }
+
+    // Reset: cancel the running inspection and return belt, stopper and robot to standby
+    public void ResetState()
+    {
+        StopAllCoroutines();
+        isInspecting = false;
+        failed = false;
+        if (belt != null) belt.ResumeConveyor();
+        if (stopper != null) stopper.ForceDown();
+        if (ik != null) StartCoroutine(ik.ReturnToHomeJoints(1.2f));
     }
 }

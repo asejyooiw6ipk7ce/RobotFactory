@@ -75,4 +75,14 @@ public class PartStopper : MonoBehaviour
         if (stopperMoving || !StopperUp) yield break;
         yield return MoveStopper(false);
     }
+
+    // Reset: stop any movement and put the stopper back in the down position
+    public void ForceDown()
+    {
+        StopAllCoroutines();
+        stopperMoving = false;
+        StopperUp = false;
+        if (stopper != null)
+            stopper.position = new Vector3(stopper.position.x, stopperDownY, stopper.position.z);
+    }
 }
