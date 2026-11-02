@@ -629,6 +629,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ProcessController
   conveyors: {fileID: 1846249303}
   camera2: {fileID: 1450697612}
+  station1: {fileID: 901069221}
   assembly: {fileID: 1939741620}
 --- !u!4 &726695519
 Transform:
@@ -932,7 +933,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.8049898, y: 0.22763538, z: 0.72395706}
   m_Center: {x: 0.022424221, y: -0.11227882, z: -0.062517166}
@@ -956,6 +957,7 @@ MonoBehaviour:
   stationId: 0
   testResult: 0
   testDefect: 2
+  reject: {fileID: 1430516493}
 --- !u!1 &931548187
 GameObject:
   m_ObjectHideFlags: 0
@@ -1367,6 +1369,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6185e905f221c74389bde0d56182fa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InspectRejectSequence
+  ik: {fileID: 1300464594}
+  gripper: {fileID: 2005934183}
+  pickPoint: {fileID: 951458694}
+  rejectPose: {fileID: 1992416190}
+  liftHeight: 0.1
+  moveSpeed: 0.2
+  maxGraspTries: 100
 --- !u!1 &1433068740
 GameObject:
   m_ObjectHideFlags: 0
@@ -2491,7 +2500,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: lines.Array.data[2].waypoints.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: 'lines.Array.data[0].waypoints.Array.data[1]'
@@ -2507,7 +2516,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: lines.Array.data[2].stopWaypointIndices.Array.size
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: 'lines.Array.data[0].stopWaypointIndices.Array.data[1]'
@@ -2562,12 +2571,16 @@ PrefabInstance:
       value: Conveyor (1) _Controller
       objectReference: {fileID: 0}
     - target: {fileID: 5625258886420286714, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.7564
+      propertyPath: m_LocalPosition.x
+      value: -1.982
       objectReference: {fileID: 0}
-    - target: {fileID: 8933858310576452693, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
+    - target: {fileID: 5625258886420286714, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.7564
+      value: 0.581
+      objectReference: {fileID: 0}
+    - target: {fileID: 5625258886420286714, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -14.594
       objectReference: {fileID: 0}
     - target: {fileID: 8933858310576452693, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2966,6 +2979,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 99572374}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2005934183 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4831014747622002404, guid: 811faa840f950944f9c89570dfc6244a, type: 3}
+  m_PrefabInstance: {fileID: 1300464593}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 557de97dc3a66724ab7f582e9d0f40fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GripperController
 --- !u!1001 &2037044640
 PrefabInstance:
   m_ObjectHideFlags: 0
