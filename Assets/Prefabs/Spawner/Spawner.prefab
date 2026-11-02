@@ -59,7 +59,7 @@ Transform:
   m_GameObject: {fileID: 2806559453606785914}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: 10.39991, y: 0.66, z: 12.871605}
+  m_LocalPosition: {x: 10.77, y: 0.66, z: 12.871605}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -242,9 +242,10 @@ MonoBehaviour:
   spawnPoint: {fileID: 4243883089910336487}
   maxCount: 20
   spawnInterval: 2
-  rotationOffset: {x: 0, y: 0, z: 0}
+  rotationOffset: {x: 0, y: 90, z: 90}
   moveDirectionPoint: {fileID: 3047196703825087580}
-  conveyorController: {fileID: 0}
+  conveyorManager: {fileID: 0}
+  lineId: 1
 --- !u!1 &8283170416250843740
 GameObject:
   m_ObjectHideFlags: 0
@@ -324,6 +325,7 @@ MonoBehaviour:
   spawnPoint: {fileID: 6044499382374965337}
   maxCount: 20
   spawnInterval: 2
-  rotationOffset: {x: 0, y: 0, z: 0}
+  rotationOffset: {x: 0, y: 270, z: 0}
   moveDirectionPoint: {fileID: 4793001025163971816}
-  conveyorController: {fileID: 0}
+  conveyorManager: {fileID: 0}
+  lineId: 0
