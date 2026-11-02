@@ -32,11 +32,26 @@ public class InspectRejectSequence : MonoBehaviour
 
         for(int attempt = 1;attempt <= maxGraspTries; attempt++)
         {
-
-            Debug.Log($"[Reject] pick(world)={pick}  pickPoint.position={pickPoint.position}");
             //2. 내려가
             yield return ik.MoveLinear(pick, moveSpeed);
-            Debug.Log($"[Reject] tip={ik.tip.position}  posErr={ik.PositionError:F4}  solveOk={ik.LastSolveOk}");
+            // Debug.Log($"[Reject] pick={pick} tip={ik.tip.position}  posErr={ik.PositionError:F4}  angleErr={ik.AngleError:F1}");
+            
+            //[Debug test] 목표를 준 직후, 관절 별로 실제 각도와 목표 각도 로그 출력
+            // 모든 관절 중 어깨 관절이 오차 제일 큼(65도)
+            // for (int i = 0; i < ik.joints.Length; i++)
+            // {
+            //     var jb = ik.joints[i];
+            //     if (jb.dofCount == 0) continue;
+            //     Debug.Log($"[Joint {i} {jb.name}] actual={jb.jointPosition[0] * Mathf.Rad2Deg:F1}  target={jb.xDrive.target:F1}  lower={jb.xDrive.lowerLimit:F1}  upper={jb.xDrive.upperLimit:F1} ");
+            //     Debug.Log($"[Joint {i} {jb.name}] stiffness={jb.xDrive.stiffness:F0}  damping={jb.xDrive.damping:F0}  forceLimit={jb.xDrive.forceLimit:F0}");
+            //     // actual : 실제 관절 각도(도) , target : IK가 요청한 목표 각도(도) , lower/upper: 관절 한계 각도(도)
+            //     // stiffness: 목쵸 각도로 세게 밀어주는 강도 , damping: 흔들림 잡아주는 정도 , forceLimit: 최대 힘
+            // }
+
+            //어깨 관절
+            var jb = ik.joints[0];
+            Debug.Log($"[Joint {0} {jb.name}] force={jb.jointForce[0]:F0}");
+            Debug.Log($"[Joint {0} {jb.name}] actual={jb.jointPosition[0] * Mathf.Rad2Deg:F1}  target={jb.xDrive.target:F1}  lower={jb.xDrive.lowerLimit:F1}  upper={jb.xDrive.upperLimit:F1} ");
 
             //3. gripper.Close() ; 잡기
             yield return gripper.Close();
