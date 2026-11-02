@@ -33,7 +33,7 @@ public partial class ArmIK : MonoBehaviour
     public float orientationWeight = 0.2f;
 
     [Header("이동")]
-    public float jointSpeed = 60f;         // 관절 이동 속도 (도/초)
+    public float jointSpeed = 110f;         // 관절 이동 속도 (도/초)
     public float minMoveTime = 0.3f;
     public float linearStep = 0.01f;        // 직선 경로를 몇 m 간격으로 나눌지
     public int correctionPasses = 3;        // 도착 후 처짐 보정 횟수
@@ -474,7 +474,7 @@ public partial class ArmIK : MonoBehaviour
     //    1cm 간격 직선 경유점마다 어깨·팔꿈치·손목 굽힘 각도를 연속 계산하고
     //    단일 물리 루프에서 부드러운 가감속(SmoothStep)으로 정밀 보간 주행합니다.
     // =========================================================================
-    public IEnumerator MoveLinearSmooth(Vector3 goal, float speed, float? yawDeg = null)
+    public IEnumerator MoveLinearSmooth(Vector3 goal, float speed, float? yawDeg = null, bool settleAndCorrect = true)
     {
         IsMoving = true;
         activeYaw = yawDeg;
@@ -540,9 +540,53 @@ public partial class ArmIK : MonoBehaviour
             }
         }
 
-        yield return Settle();
-        yield return Correct(goal);
+        if (settleAndCorrect)
+        {
+            yield return Settle();
+            yield return Correct(goal);
+        }
 
+        IsMoving = false;
+    }
+
+    /// <summary>
+    /// 현재 위치를 제자리에 고정한 상태에서 손목 각도(Yaw)만 실시간으로 회전 구동합니다 (재시도 시 Wiggle / Re-align 미세 정렬 연출용).
+    /// </summary>
+    public IEnumerator RotateWristLive(float targetYawDeg, float duration = 0.2f)
+    {
+        IsMoving = true;
+        activeYaw = targetYawDeg;
+        Vector3 curPos = (tip != null) ? tip.position : transform.position;
+        float[] current = CurrentTargets();
+        float[] solution = new float[n];
+
+        bool ok;
+        if (!pointDown && useTargetLookDir)
+        {
+            ok = SolveArcContinuation(curPos, activeYaw, current, solution);
+        }
+        else
+        {
+            ok = Solve(curPos, activeYaw, current, solution);
+        }
+
+        if (ok)
+        {
+            yield return Drive(solution, Mathf.Max(0.04f, duration), true);
+        }
+        else
+        {
+            // Solve 실패 시 마지막 관절(손목)을 직접 구동
+            if (joints != null && joints.Length > 0)
+            {
+                int wristIdx = joints.Length - 1;
+                float[] targetAngles = (float[])current.Clone();
+                targetAngles[wristIdx] = targetYawDeg;
+                yield return Drive(targetAngles, Mathf.Max(0.04f, duration), true);
+            }
+        }
+
+        yield return new WaitForFixedUpdate();
         IsMoving = false;
     }
 

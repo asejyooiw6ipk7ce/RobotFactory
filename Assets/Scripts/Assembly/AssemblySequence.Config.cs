@@ -47,6 +47,25 @@ public partial class AssemblySequence
     [Tooltip("완제품을 내려놓을 컨베이어 C 이송 위치 (선택 사항)")]
     public Transform outputConveyorPoint;
 
+    [Tooltip("부품 불량 시 폐기할 폐기함 기준점 (RejectBin, 비워두면 로봇 기준 기본 좌표 자동 적용)")]
+    public Transform rejectBin;
+
+    [Header("완제품 비전 검사 및 컨베이어 입출고 연동")]
+    [Tooltip("조립 및 비틀림 적용 후 완제품을 촬영·판정할 카메라3 검사기 (비워두면 씬에서 자동 검색)")]
+    public Camera3Inspector camera3Inspector;
+
+    [Tooltip("체크 시 컨베이어 A(부품1)와 컨베이어 B(부품2)가 모두 도착(NotifyPart1Ready/NotifyPart2Ready)하면 자동으로 Assemble()을 시작합니다.")]
+    public bool autoStartWhenBothPartsReady = true;
+
+    [Tooltip("단독 반복 테스트 편의용: Assemble 시작 시 클로가 이미 결합되어 있으면 초기 위치로 리셋할지 여부 (연속 스폰 시에는 새 클로가 주입되므로 간섭 방지됨)")]
+    public bool autoResetClawOnAssembleStart = true;
+
+    [Tooltip("조립 및 검사 완료 후 재가동할 컨베이어 제어기 (선택 사항)")]
+    public ConveyorController outputConveyor;
+
+    [Tooltip("조립 및 검사 완료 후 해제(Resume)할 스토퍼 제어기 (선택 사항)")]
+    public PartStopper outputStopper;
+
     [Header("자세 적응형 파지 (Adaptive Grasp)")]
     [Tooltip("체크 시 컨베이어 벨트 등에서 회전되어 들어오는 클로의 각도를 실시간 감지하여 최적 손목 각도(Yaw) 자동 계산")]
     public bool autoDetectClawYaw = true;
@@ -88,10 +107,10 @@ public partial class AssemblySequence
     public float socketMountOffset = 0.114f;
 
     [Tooltip("4.2 소켓 앞 대기 지점까지 수평 직선 이동 속도 (m/s)")]
-    public float alignLinearSpeed = 0.35f;
+    public float alignLinearSpeed = 0.55f;
 
     [Tooltip("수평 삽입 전진 속도 (m/s)")]
-    public float insertSpeed = 0.10f;
+    public float insertSpeed = 0.075f;
 
     [Tooltip("6단계 분리 후 상공 수직 상승 속도 (m/s, 기본 0.25m/s - SmoothStep 가감속 적용)")]
     public float retractLiftSpeed = 0.35f;
@@ -141,6 +160,47 @@ public partial class AssemblySequence
     [Tooltip("정상 결합 시 잔여 각도 오차 범위 (도, SRS 명세: 0~1.5도)")]
     public Vector2 normalAngleRange = new Vector2(0f, 1.5f);
 
+    [Header("조립 실패 및 재시도 설정")]
+    [Tooltip("조립 타임아웃 제한 시간 (초, 기본값: 20초)")]
+    public float assemblyTimeoutSeconds = 20.0f;
+
+    [Tooltip("타임아웃 시 최대 재시도 횟수 (기본값: 2회)")]
+    [Range(0, 5)]
+    public int maxRetryCount = 2;
+
+    [Tooltip("1차 조립 시도 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
+    [Range(0f, 1f)]
+    public float assemblyFailureProbability = 0.0f;
+
+    [Tooltip("재시도 1회차 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
+    [Range(0f, 1f)]
+    public float retry1FailureProbability = 0.0f;
+
+    [Tooltip("재시도 2회차 실패 확률 (기본값: 0.00 = 정상 체결, 재시도 시연 시 0.50 권장)")]
+    [Range(0f, 1f)]
+    public float retry2FailureProbability = 0.0f;
+
+    [Tooltip("체크 시 1차 실패에서만 SRS 20초 타임아웃을 대기합니다 (체크 해제 시 1차 실패도 걸림 연출 후 빠르게 재시도). 재시도 회차부터는 대기 없이 즉시 걸림 연출 후 다음 단계로 진행됩니다.")]
+    public bool waitFullTimeoutOnFirstFail = false;
+
+    /// <summary>
+    /// 상위 제어기(ProcessController) 또는 외부에서 동적으로 조립 실패율을 주입/조회할 수 있는 프로퍼티 (FR-07)
+    /// </summary>
+    public float AssemblyFailureProbability
+    {
+        get => assemblyFailureProbability;
+        set => assemblyFailureProbability = Mathf.Clamp01(value);
+    }
+
+    /// <summary>
+    /// 외부에서 타임아웃 제한 시간을 조회하거나 설정할 수 있는 프로퍼티 (기본 20초)
+    /// </summary>
+    public float AssemblyTimeoutSeconds
+    {
+        get => assemblyTimeoutSeconds;
+        set => assemblyTimeoutSeconds = Mathf.Max(1.0f, value);
+    }
+
     [Header("작업 반경 시각화 및 배치 검증")]
     [Tooltip("로봇 작업 반경 대비 주요 공정 위치(클로, 소켓, 폐기함, 컨베이어) 도달 가능 상태 가이드선 표시")]
     public bool showReachabilityGizmos = true;
@@ -157,6 +217,43 @@ public partial class AssemblySequence
     {
         Transform baseTr = (ik != null ? ik.transform : transform);
         return baseTr.position + baseTr.rotation * homePosition;
+    }
+
+    /// <summary>
+    /// 폐기함(RejectBin) 월드 좌표 반환 (지정되지 않은 경우 로봇 받침대 우측 기본 좌표 적용)
+    /// </summary>
+    public Vector3 GetRejectBinWorldPosition()
+    {
+        if (rejectBin != null) return rejectBin.position;
+        Transform baseTr = (ik != null ? ik.transform : transform);
+        return baseTr.position + baseTr.rotation * new Vector3(0.93f, 0.0f, -0.30f);
+    }
+
+    /// <summary>
+    /// 폐기함(RejectBin)의 실제 크기/높이를 감지하여 상단 개구부 상공(투하 지점)의 월드 좌표를 정밀 반환
+    /// </summary>
+    public Vector3 GetRejectBinDropPosition()
+    {
+        if (rejectBin != null)
+        {
+            var colliders = rejectBin.GetComponentsInChildren<Collider>();
+            if (colliders != null && colliders.Length > 0)
+            {
+                // 자식 콜라이더 전체의 바운즈를 결합하여 실제 물리적 정중앙과 상단 높이 계산
+                Bounds combined = colliders[0].bounds;
+                for (int i = 1; i < colliders.Length; i++)
+                {
+                    combined.Encapsulate(colliders[i].bounds);
+                }
+                // 상자의 물리적 정중앙 X, Z 및 최상단 높이보다 18cm 높은 상공 좌표
+                return new Vector3(combined.center.x, combined.max.y + 0.18f, combined.center.z);
+            }
+
+            return new Vector3(rejectBin.position.x, rejectBin.position.y + 0.65f, rejectBin.position.z);
+        }
+
+        Transform baseTr = (ik != null ? ik.transform : transform);
+        return baseTr.position + baseTr.rotation * new Vector3(0.93f, 0.65f, -0.30f);
     }
 
     #endregion

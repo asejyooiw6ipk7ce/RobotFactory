@@ -20,6 +20,10 @@ public partial class AssemblySequence : MonoBehaviour
 {
     #region 상태 프로퍼티
 
+    [Header("스테이션 식별 (UML)")]
+    [Tooltip("현재 시퀀스가 속한 스테이션 식별자")]
+    public StationId stationId = StationId.Station2;
+
     private bool isStepBusy = false;
     private bool isContinuousBusy = false;
     public bool IsBusy
@@ -27,9 +31,54 @@ public partial class AssemblySequence : MonoBehaviour
         get => isStepBusy || isContinuousBusy;
         private set => isStepBusy = value;
     }
-    public string Status { get; private set; } = "대기";
+    [Tooltip("로봇 번호 (스테이션 2 = 로봇 2)")]
+    public int robotId = 2;
+
+    /// <summary>
+    /// [SSOT] 로봇 2의 시스템 상태 (대시보드 및 공정 이벤트와 100% 동기화)
+    /// </summary>
+    public RobotState CurrentRobotState { get; private set; } = RobotState.Idle;
+    private string stepDetail = "대기";
+
+    /// <summary>
+    /// [계산 프로퍼티] RobotState와 세부 진행 설명을 통합 반환 (에디터 인스펙터 및 디버그용)
+    /// </summary>
+    public string Status => string.IsNullOrEmpty(stepDetail)
+        ? GetRobotStateKorean(CurrentRobotState)
+        : $"[{GetRobotStateKorean(CurrentRobotState)}] {stepDetail}";
+
+    /// <summary>
+    /// 로봇 상태 및 세부 공정 단계를 단일 진입점으로 통합 갱신합니다.
+    /// 상태 변경 시 RobotStatusTracker를 통해 대시보드 및 이벤트 버스로 즉시 브로드캐스트됩니다.
+    /// </summary>
+    public void SetState(RobotState newState, string detail = null)
+    {
+        bool stateChanged = CurrentRobotState != newState;
+        CurrentRobotState = newState;
+        stepDetail = detail;
+
+        if (stateChanged)
+        {
+            RobotStatusTracker.Set(robotId, newState);
+        }
+    }
+
+    private static string GetRobotStateKorean(RobotState state)
+    {
+        return state switch
+        {
+            RobotState.Idle => "대기",
+            RobotState.Moving => "이동",
+            RobotState.Working => "작업",
+            RobotState.Assembling => "조립",
+            RobotState.Error => "오류",
+            _ => state.ToString()
+        };
+    }
     public bool LastAssemblyOk { get; private set; } = false;
     public float LastAngleError { get; private set; } = 0f;
+    public int CurrentRetryCount { get; private set; } = 0;
+    public float LastElapsedTime { get; private set; } = 0f;
 
     // 편의 접근자
     public PartInfo CurrentPart => currentPartInfo;
@@ -111,7 +160,7 @@ public partial class AssemblySequence : MonoBehaviour
     public IEnumerator ResetToInitialStateRoutine()
     {
         IsBusy = true;
-        Status = "초기화 진행 중...";
+        SetState(RobotState.Moving, "초기화 진행 중...");
 
         // 1. 클로 복원
         ResetClawToInitialState();
@@ -127,12 +176,12 @@ public partial class AssemblySequence : MonoBehaviour
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.ReturnToHomeJoints(0.8f);
+            yield return ik.ReturnToHomeJoints(1.2f);
         }
 
         yield return new WaitForSeconds(0.1f);
         IsBusy = false;
-        Status = "대기 (초기화 완료)";
+        SetState(RobotState.Idle, "초기화 완료");
     }
 
     /// <summary>
@@ -196,7 +245,11 @@ public partial class AssemblySequence : MonoBehaviour
         if (ik == null) ik = GetComponent<ArmIK>();
         if (ik == null) ik = GetComponentInChildren<ArmIK>();
         if (ik == null) ik = FindAnyObjectByType<ArmIK>();
-        if (ik != null) ik.AutoAssign();
+        if (ik != null)
+        {
+            ik.AutoAssign();
+            if (ik.jointSpeed < 100f) ik.jointSpeed = 110f;
+        }
 
         // 3. GripperController 자동 연결
         if (gripper == null) gripper = GetComponent<GripperController>();
@@ -343,30 +396,132 @@ public partial class AssemblySequence : MonoBehaviour
                 }
             }
         }
+
+        // 8. 불량 부품 폐기함(RejectBin) 자동 탐색
+        if (rejectBin == null)
+        {
+            GameObject bin = GameObject.Find("RejectBin");
+            if (bin == null) bin = GameObject.Find("reject_bin");
+            if (bin == null) bin = GameObject.Find("Bin");
+            if (bin != null) rejectBin = bin.transform;
+        }
+
+        // 9. 완제품 비전 검사기(Camera3Inspector) 자동 탐색
+        if (camera3Inspector == null)
+        {
+            camera3Inspector = FindAnyObjectByType<Camera3Inspector>();
+        }
     }
+
+    private bool isPart1ReadyForCycle = false;
+    private bool isPart2ReadyForCycle = false;
 
     public void SetPart(PartInfo part)
     {
         currentPartInfo = part;
         clawPart = part != null ? part.transform : null;
+        BindNewClawInstance();
     }
 
     public void SetPart(Transform partTransform)
     {
         clawPart = partTransform;
         currentPartInfo = partTransform != null ? partTransform.GetComponent<PartInfo>() : null;
+        BindNewClawInstance();
+    }
+
+    private void BindNewClawInstance()
+    {
+        if (clawPart == null) return;
+
+        var rb = clawPart.GetComponent<Rigidbody>();
+        if (rb != null) rb.isKinematic = true;
+
+        Transform graspPlatform = clawPart.Find("grap_platfrom_01");
+        if (graspPlatform != null)
+        {
+            var box = graspPlatform.GetComponent<BoxCollider>();
+            if (box == null) box = graspPlatform.gameObject.AddComponent<BoxCollider>();
+            box.size = new Vector3(0.035f, 0.040f, 0.040f);
+            box.center = Vector3.zero;
+        }
+
+        // 새로 투입된 클로의 정지 위치를 초기 기준점으로 갱신
+        initialClawPosition = clawPart.position;
+        initialClawRotation = clawPart.rotation;
+        initialClawParent = clawPart.parent;
+        initialClawRecorded = true;
     }
 
     public void SetBase(BaseInfo b)
     {
         currentBase = b;
         targetRobotBase = b != null ? b.transform : null;
+        BindNewBaseSocket();
     }
 
     public void SetBase(Transform baseTransform)
     {
         targetRobotBase = baseTransform;
         currentBase = baseTransform != null ? baseTransform.GetComponent<BaseInfo>() : null;
+        BindNewBaseSocket();
+    }
+
+    private void BindNewBaseSocket()
+    {
+        baseSocket = null;
+        if (targetRobotBase == null) return;
+
+        foreach (var t in targetRobotBase.GetComponentsInChildren<Transform>(true))
+        {
+            if (t.name.Equals("Socket", System.StringComparison.OrdinalIgnoreCase))
+            {
+                baseSocket = t;
+                break;
+            }
+        }
+
+        if (baseSocket == null && currentBase != null && currentBase.socket != null)
+        {
+            baseSocket = currentBase.socket;
+        }
+
+        if (currentBase != null && baseSocket != null)
+        {
+            currentBase.socket = baseSocket;
+        }
+        basePoint = targetRobotBase;
+    }
+
+    /// <summary>
+    /// [WBS 5.4] 스테이션 2 컨베이어 A 스토퍼에 양품 부품1(클로)이 도착했을 때 호출
+    /// </summary>
+    public void NotifyPart1Ready(PartInfo part)
+    {
+        SetPart(part);
+        isPart1ReadyForCycle = (clawPart != null);
+        TryStartAssemblyIfBothReady();
+    }
+
+    /// <summary>
+    /// [WBS 5.4] 스테이션 2 컨베이어 B 검사 지점에 양품 부품2(로봇 베이스)가 준비되었을 때 호출
+    /// </summary>
+    public void NotifyPart2Ready(BaseInfo robotBase)
+    {
+        SetBase(robotBase);
+        isPart2ReadyForCycle = (targetRobotBase != null);
+        TryStartAssemblyIfBothReady();
+    }
+
+    private void TryStartAssemblyIfBothReady()
+    {
+        if (!autoStartWhenBothPartsReady || IsBusy) return;
+        if (isPart1ReadyForCycle && isPart2ReadyForCycle && clawPart != null && targetRobotBase != null)
+        {
+            isPart1ReadyForCycle = false;
+            isPart2ReadyForCycle = false;
+            StartCoroutine(Assemble(-1f));
+        }
     }
 
 
@@ -456,6 +611,12 @@ public partial class AssemblySequence : MonoBehaviour
     /// </summary>
     public void GetSlotInfo(out Vector3 slotCenter, out Vector3 approachPos, out Vector3 insertDir)
     {
+        // 다중 스폰 시 baseSocket이 이전 차체를 가리키고 있으면 현재 targetRobotBase 기준으로 재탐색
+        if (baseSocket != null && targetRobotBase != null && !baseSocket.IsChildOf(targetRobotBase))
+        {
+            baseSocket = null;
+        }
+
         // 1순위: moto_base의 실제 Socket 객체 (사용자가 추가한 결합 지점)
         Transform slotTransform = baseSocket;
         if (slotTransform == null && targetRobotBase != null)
@@ -791,37 +952,60 @@ public partial class AssemblySequence : MonoBehaviour
 
     public IEnumerator Assemble()
     {
-        yield return Assemble(-1f, null, null);
+        yield return Assemble(-1f, null, null, null, null);
     }
 
     public IEnumerator Assemble(float graspYaw)
     {
-        yield return Assemble(graspYaw, null, null);
+        yield return Assemble(graspYaw, null, null, null, null);
+    }
+
+    public IEnumerator Assemble(float graspYaw, float? overrideDefectProbability, float? forcedAngleError = null)
+    {
+        yield return Assemble(graspYaw, overrideDefectProbability, forcedAngleError, null, null);
+    }
+
+    public IEnumerator Assemble(float graspYaw, float? overrideDefectProbability, float? forcedAngleError, float? overrideFailureProbability)
+    {
+        yield return Assemble(graspYaw, overrideDefectProbability, forcedAngleError, overrideFailureProbability, null);
     }
 
     /// <summary>
     /// [UML: + Assemble(float graspYaw) : IEnumerator]
     /// 전체 수평 조립 시퀀스 실행 (SRS FR-07 및 FR-08 준수)
-    /// - 상위 제어기(ProcessController)가 overrideDefectProbability 또는 forcedAngleError를 주입할 수 있음
-    /// - 인자 미지정 시 인스펙터의 DefectProbability 및 자체 계산으로 단독 실행
+    /// - 20초 이내 결합 완료 감시 (WBS 6.6)
+    /// - 결합 실패 시 소켓 앞 제자리 후퇴(8cm) 및 미세 정렬 후 최대 maxRetryCount(기본 2회) 재삽입 (텔레포트 100% 제거)
+    /// - 4대 확정 분기 시나리오 지원:
+    ///   1) 바로 성공 (0회 재시도): 1차 삽입 체결 완료 -> Idle
+    ///   2) 재시도 1회 성공: 1차 실패 -> 소켓 앞 후퇴/미세 정렬 -> 2차 체결 완료 -> Idle
+    ///   3) 재시도 2회 성공: 1, 2차 실패 -> 소켓 앞 후퇴/미세 정렬 -> 3차 체결 완료 -> Idle
+    ///   4) 최종 2회 모두 실패: 3회 연속 실패 -> 소켓 후퇴 -> 폐기함(RejectBin) 이동 -> 클로 물리 투하(Drop) -> 차체 불량(PartLoss) 배출 -> RobotState.Error
     /// </summary>
-    public IEnumerator Assemble(float graspYaw, float? overrideDefectProbability, float? forcedAngleError = null)
+    public IEnumerator Assemble(float graspYaw = -1f, float? overrideDefectProbability = null, float? forcedAngleError = null, float? overrideFailureProbability = null, int? forcedFailCount = null)
     {
         if (IsBusy) yield break;
 
         IsBusy = true;
         LastAssemblyOk = false;
         LastAngleError = 0f;
-        Status = "0. 조립 시퀀스 준비 중...";
-        Debug.Log($"[AssemblySequence] {Status}");
+        CurrentRetryCount = 0;
+        LastElapsedTime = 0f;
+
+        float overallStartTime = Time.time;
+        SetState(RobotState.Moving, "0. 조립 시퀀스 준비 중...");
+        Debug.Log($"[AssemblySequence] (경과: 0.00초) {Status}");
 
         AutoFindReferences();
         ApplyGripperCloseTarget();
 
-        // [새 조립 시작 안전 복원] 클로가 이전 조립 잔재(차체/소켓 등)에 결합되어 있다면 컨베이어 초기 위치로 복원
-        if (initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
+        // [단독 테스트 안전 복원] 동일 클로로 반복 테스트할 때만 초기 위치로 복원
+        if (autoResetClawOnAssembleStart && initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
         {
-            ResetClawToInitialState();
+            // 현재 타깃 베이스(targetRobotBase)에 붙어있는 동일 클로인 경우에만 리셋 (이미 출하된 다른 차체의 클로는 보호)
+            if (targetRobotBase == null || clawPart.IsChildOf(targetRobotBase))
+            {
+                ResetClawToInitialState();
+            }
         }
 
         // 베이스와 부품 호환성 확인
@@ -845,14 +1029,15 @@ public partial class AssemblySequence : MonoBehaviour
         }
 
         // 1. 그리퍼 초기 열기 (대기 상태)
-        Status = "1. 그리퍼 개방 및 클로 감지";
-        Debug.Log($"[AssemblySequence] {Status}");
+        SetState(RobotState.Working, "1. 그리퍼 개방 및 클로 감지");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
         if (gripper != null) yield return gripper.Open();
 
         if (clawPart == null)
         {
             Debug.LogError("[AssemblySequence] 조립 대상 부품1(claw)을 찾을 수 없습니다.");
-            Status = "오류: 부품1 없음";
+            SetState(RobotState.Error, "부품1 없음");
+            LastAssemblyOk = false;
             IsBusy = false;
             yield break;
         }
@@ -861,29 +1046,27 @@ public partial class AssemblySequence : MonoBehaviour
         float targetYaw = (graspYaw >= 0f) ? graspYaw : GetEffectiveYaw();
         Vector3 pickPos = GetPickPosition();
         Vector3 pickApproach = pickPos + Vector3.up * approachHeight;
-        float safeTransitY = pickApproach.y + 0.5f;
-        Vector3 safeHighTransit = new Vector3(pickPos.x, safeTransitY, pickPos.z);
 
-        // 2. 상공 경유하여 클로 상공으로 접근 (상공 고도 0.95m 경유로 팔꿈치를 위(Elbow-Up)로 확실히 유지)
-        Status = $"2. 클로 상공으로 접근 (목표 손목 {targetYaw:F1}°)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        // 2. 상공 경유하여 클로 상공으로 접근 (상공 고도 0.95m 경유로 Elbow-Up 확실히 유지)
+        SetState(RobotState.Moving, $"2. 클로 상공으로 접근 (목표 손목 {targetYaw:F1}°)");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
         if (ik != null)
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
             Vector3 highSafeTransit = new Vector3(pickApproach.x, 0.95f, pickApproach.z);
             yield return ik.MoveTo(highSafeTransit, null);
-            yield return ik.MoveTo(pickApproach, targetYaw);
+            yield return ik.MoveLinearSmooth(pickApproach, 0.40f, targetYaw, false);
         }
 
         // 3. 파지 하강 (Descend) & 그리퍼 닫기 (Grasp)
-        Status = "3. 하강 및 그리퍼 파지 (Grasp)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        SetState(RobotState.Working, "3. 하강 및 그리퍼 파지 (Grasp)");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
         if (ik != null)
         {
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw);
+            yield return ik.MoveLinearSmooth(pickPos, descendSpeed, targetYaw, false);
         }
 
         if (gripper != null)
@@ -895,8 +1078,8 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
 
         // 4. 안전 상공 리프팅 (Lift)
-        Status = "4. 클로 들어올리기 (Lift)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        SetState(RobotState.Working, "4. 클로 들어올리기 (Lift)");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
         AttachClawToGripper();
 
         GetSlotInfo(out Vector3 slotCenter, out Vector3 insertApproach, out Vector3 insertDir);
@@ -914,19 +1097,19 @@ public partial class AssemblySequence : MonoBehaviour
         yield return new WaitForSeconds(0.15f);
 
         // 5. [4.1 & 4.2] TestTarget 소켓 앞 수평 정렬 (Horizontal Align, FR-07)
-        Status = "5. 그리퍼 수평 전환(4.1) 후 shoulder_link 회전(4.2) (소켓 앞 정렬)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        SetState(RobotState.Moving, "5. 그리퍼 수평 전환(4.1) 후 shoulder_link 회전(4.2) (소켓 앞 정렬)");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
 
         if (ik != null)
         {
-            // [4.1] 컨베이어 상공에서 그리퍼 끝 수평 회전 (차체 소켓 방향 <-X 지향)
+            // [4.1] 컨베이어 상공에서 그리퍼 끝 수평 회전 (차체 소켓 방향 지향)
             ik.pointDown = false;
             ik.useTargetLookDir = true;
             ik.targetLookDir = insertDir;
             yield return ik.MoveTo(liftGoal, alignWristYaw);
             yield return new WaitForSeconds(0.2f);
 
-            // [4.2] 그리퍼가 소켓 방향(<-X)을 바라본 채 회전 각도에 맞춰 팔을 굽히며 소켓 앞 대기 위치까지 이동 (사각지대 관통 시 원호 스윙)
+            // [4.2] 소켓 앞 대기 위치(insertApproach)까지 이동
             Vector3 startPos = (ik.tip != null) ? ik.tip.position : liftGoal;
             if (DoesSegmentCrossDeadzone(startPos, insertApproach))
             {
@@ -939,26 +1122,293 @@ public partial class AssemblySequence : MonoBehaviour
             yield return new WaitForSeconds(0.2f);
         }
 
-        // 6. [4.3] Socket으로 수평 삽입 (Insert, FR-07)
-        Status = "6. Socket으로 수평 삽입 (Insert)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        // =====================================================================
+        // [6~8단계: 소켓 결합 및 제자리 재시도 루프 (FR-07 WBS 6.6)]
+        // =====================================================================
+        Vector3 tipInsertGoal = GetTipInsertGoal(slotCenter, insertDir);
+        int totalMaxAttempts = Mathf.Max(1, maxRetryCount + 1);
+        bool finalSuccess = false;
+
+        for (int attempt = 0; attempt < totalMaxAttempts; attempt++)
+        {
+            CurrentRetryCount = attempt;
+            float attemptStartTime = Time.time;
+            string retryPrefix = attempt > 0 ? $"[재시도 {attempt}/{maxRetryCount}] " : "";
+
+            // 1. 이번 시도의 실패 여부 사전 판정 (기본 50% 확률 또는 에디터 강제 설정)
+            bool failThisAttempt;
+            if (forcedFailCount.HasValue)
+            {
+                failThisAttempt = (attempt < forcedFailCount.Value);
+            }
+            else
+            {
+                float failProb = GetFailureProbabilityForAttempt(attempt, overrideFailureProbability);
+                failThisAttempt = (failProb > 0f && UnityEngine.Random.value < failProb);
+            }
+
+            // 2. 재시도 회차(attempt > 0)일 경우: 소켓 앞 8cm 제자리 후퇴 & 손목 미세 정렬 먼저 수행
+            if (attempt > 0)
+            {
+                yield return RetryDisengageAndRealignRoutine(insertApproach, insertDir, alignWristYaw, attempt, overallStartTime);
+            }
+
+            // 3. 소켓 삽입 전진 실행
+            if (failThisAttempt)
+            {
+                // [걸림 연출 강화] 소켓 끝까지 들어가지 못하고 60% 깊이에서 턱 걸린 후 덜컹거리는 저항 연출 (약 1.2초)
+                yield return ExecuteJammingInsertionRoutine(insertApproach, tipInsertGoal, insertDir, alignWristYaw, attempt, totalMaxAttempts, overallStartTime);
+
+                // [대기 시간 처리]
+                // 1차 시도에서만 사용자가 waitFullTimeoutOnFirstFail을 켰을 때 20초 대기
+                // 재시도 회차(attempt > 0)부터는 20초 대기 없이 걸림 연출 후 즉시 실패 판정!
+                if (attempt == 0 && waitFullTimeoutOnFirstFail)
+                {
+                    Debug.LogWarning($"[AssemblySequence] ⏱️ {retryPrefix}1차 조립 실패 - 20초 타임아웃 감시 중...");
+                    SetState(RobotState.Assembling, $"{retryPrefix}Socket 결합 저항/걸림 발생 (타임아웃 감시 중...)");
+                    while ((Time.time - attemptStartTime) < assemblyTimeoutSeconds)
+                    {
+                        yield return null;
+                    }
+                    float timeoutElapsed = Time.time - attemptStartTime;
+                    LastElapsedTime = timeoutElapsed;
+                }
+                else
+                {
+                    LastElapsedTime = Time.time - attemptStartTime;
+                    Debug.LogWarning($"[AssemblySequence] ⏱️ {retryPrefix}조립 저항/걸림 확인 (경과: {LastElapsedTime:F2}초) - 20초 대기 없이 즉시 다음 단계 연계");
+                }
+
+                if (attempt < maxRetryCount)
+                {
+                    Debug.LogWarning($"[AssemblySequence] 🔄 {retryPrefix}조립 저항 확인. 소켓 앞에서 제자리 미세 정렬 재시도({attempt + 1}/{maxRetryCount})로 진행합니다.");
+                    continue; // 다음 재시도 루프로 즉시 진행
+                }
+                else
+                {
+                    // 최대 재시도(2회) 모두 소진 -> 경우 4 진입
+                    finalSuccess = false;
+                    break;
+                }
+            }
+            else
+            {
+                // [정상 삽입] 목표 위치까지 100% 매끄럽게 정상 진입
+                SetState(RobotState.Assembling, $"{retryPrefix}6. Socket으로 수평 삽입 (Insert)");
+                Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
+                if (ik != null)
+                {
+                    ik.pointDown = false;
+                    ik.useTargetLookDir = true;
+                    ik.targetLookDir = insertDir;
+                    yield return ik.MoveLinearSmooth(tipInsertGoal, insertSpeed, alignWristYaw);
+                }
+                yield return new WaitForSeconds(0.15f);
+
+                // 조립 결합 체결 성공 (7~8단계 실행)
+                yield return FinishSnapAndReleaseRoutine(slotCenter, insertApproach, insertDir, alignWristYaw, overrideDefectProbability, forcedAngleError, attempt, overallStartTime);
+                finalSuccess = true;
+                break;
+            }
+        }
+
+        if (!finalSuccess)
+        {
+            // 경우 4: 최종 2회 모두 실패 -> 폐기함 투하 및 차체 불량(PartLoss) 배출 -> RobotState.Error
+            yield return RejectClawAndHandleDefectRoutine(insertApproach, insertDir, alignWristYaw);
+        }
+
+        IsBusy = false;
+    }
+
+    /// <summary>
+    /// 시도 인덱스(attempt: 0=1차, 1=재시도1, 2=재시도2)에 따른 실패 확률 반환 (기본값 각 50%)
+    /// </summary>
+    public float GetFailureProbabilityForAttempt(int attempt, float? overrideFailureProbability)
+    {
+        if (overrideFailureProbability.HasValue) return overrideFailureProbability.Value;
+        switch (attempt)
+        {
+            case 0: return assemblyFailureProbability; // 기본 0.50 (50%)
+            case 1: return retry1FailureProbability;   // 기본 0.50 (50%)
+            case 2: return retry2FailureProbability;   // 기본 0.50 (50%)
+            default: return 0.50f;
+        }
+    }
+
+    /// <summary>
+    /// [공차 불일치 걸림(Jamming) 연출]
+    /// 소켓 입구 부근(약 60% 깊이)에서 '턱!' 걸려 멈춘 후, 억지로 밀어 넣으려는 전후 덜컹거림 및 손목 비틀림 저항 모션 연출 (약 1.2초 소요)
+    /// </summary>
+    private IEnumerator ExecuteJammingInsertionRoutine(Vector3 insertApproach, Vector3 tipInsertGoal, Vector3 insertDir, float alignWristYaw, int attempt, int totalMaxAttempts, float overallStartTime)
+    {
+        string retryPrefix = attempt > 0 ? $"[재시도 {attempt}/{maxRetryCount}] " : "";
+        SetState(RobotState.Assembling, $"{retryPrefix}6. Socket으로 수평 삽입 시도 중...");
+
         if (ik != null)
         {
-            Vector3 tipInsertGoal = GetTipInsertGoal(slotCenter, insertDir);
             ik.pointDown = false;
             ik.useTargetLookDir = true;
             ik.targetLookDir = insertDir;
-            yield return ik.MoveLinearSmooth(tipInsertGoal, insertSpeed, alignWristYaw);
+
+            // 1. 소켓 입구 약 60% 지점까지만 진입 후 '턱!' 하고 걸림
+            Vector3 jammedPos = Vector3.Lerp(insertApproach, tipInsertGoal, 0.60f);
+            yield return ik.MoveLinearSmooth(jammedPos, insertSpeed * 1.3f, alignWristYaw, false);
+
+            SetState(RobotState.Assembling, $"{retryPrefix}6. 소켓 입구 공차 걸림 발생! (Stuck/Resistance)");
+            Debug.LogWarning($"[AssemblySequence] ⚠️ {retryPrefix}[공차 걸림 발생] 소켓 입구에서 클로가 걸려 진입 불가! 억지 진입 저항 연출 (시도 {attempt + 1}/{totalMaxAttempts})");
+
+            // 2. 억지 진입 시도: 앞으로 1.2cm 억지로 쿵 밀어보지만 걸려 튕겨 나옴 (밀기 0.12s -> 되돌림 0.12s)
+            yield return ik.MoveLinear(jammedPos + insertDir * 0.012f, 0.12f, alignWristYaw);
+            yield return ik.MoveLinear(jammedPos, 0.12f, alignWristYaw);
+
+            // 3. 손목 좌우 비틀기 저항 (Wiggle Resistance): 억지로 맞추려고 삐걱삐걱 흔들림
+            yield return ik.RotateWristLive(alignWristYaw + 5.0f, 0.14f);
+            yield return ik.RotateWristLive(alignWristYaw - 5.0f, 0.14f);
+            yield return ik.RotateWristLive(alignWristYaw, 0.12f);
+
+            // 4. 상하 미세 덜컹거림 (0.15s)
+            yield return ik.MoveLinear(jammedPos + Vector3.up * 0.008f, 0.10f, alignWristYaw);
+            yield return ik.MoveLinear(jammedPos, 0.10f, alignWristYaw);
+        }
+
+        yield return new WaitForSeconds(0.1f);
+    }
+
+    /// <summary>
+    /// [소켓 앞 제자리 후퇴 및 미세 정렬 루틴 (FR-07 WBS 6.6)]
+    /// 걸린 위치에서 소켓 앞 8cm로 안전 후퇴 후, 손목 미세 정렬(Re-align) 연출
+    /// </summary>
+    private IEnumerator RetryDisengageAndRealignRoutine(Vector3 insertApproach, Vector3 insertDir, float alignWristYaw, int attempt, float overallStartTime)
+    {
+        string retryPrefix = $"[재시도 {attempt}/{maxRetryCount}] ";
+        Debug.LogWarning($"[AssemblySequence] 🔄 {retryPrefix}소켓 앞 8cm 제자리 후퇴 및 손목 미세 정렬 시작 (경과: {Time.time - overallStartTime:F2}초)");
+        SetState(RobotState.Moving, $"{retryPrefix}소켓 앞 8cm 후퇴 (Disengage)");
+
+        if (ik != null)
+        {
+            ik.pointDown = false;
+            ik.useTargetLookDir = true;
+            ik.targetLookDir = insertDir;
+
+            // 1. 소켓 앞 8cm 후퇴
+            yield return ik.MoveLinear(insertApproach, 0.25f, alignWristYaw);
+            yield return new WaitForSeconds(0.1f);
+
+            // 2. 손목 미세 정렬 연출
+            SetState(RobotState.Working, $"{retryPrefix}손목 미세 정렬 (Re-align)");
+            yield return ik.RotateWristLive(alignWristYaw + 3.0f, 0.2f);
+            yield return ik.RotateWristLive(alignWristYaw, 0.2f);
+            yield return new WaitForSeconds(0.1f);
+        }
+    }
+
+    /// <summary>
+    /// [최종 2회 재시도 모두 실패 시 폐기 및 불량 배출 루틴 (경우 4)]
+    /// 소켓 안전 후퇴 -> RejectBin 상단 개구부 상공 선회 이동 -> 클로 물리 투하(Gravity Drop) -> 차체 PartLoss 배출 -> 로봇 홈 복귀 -> RobotState.Error
+    /// </summary>
+    private IEnumerator RejectClawAndHandleDefectRoutine(Vector3 insertApproach, Vector3 insertDir, float alignWristYaw)
+    {
+        Debug.LogError($"[AssemblySequence] ❌ [조립 최종 실패] 최대 재시도({maxRetryCount}회)를 모두 초과하였습니다. 클로 폐기함 투하 및 차체 불량 배출을 진행합니다.");
+        SetState(RobotState.Moving, "최종 실패 - 소켓 안전 후퇴 및 폐기함 이동");
+
+        AutoFindReferences(); // RejectBin 자동 탐색 보장
+
+        // 1. 소켓에서 수평 안전 후퇴
+        if (ik != null)
+        {
+            ik.pointDown = false;
+            ik.useTargetLookDir = true;
+            ik.targetLookDir = insertDir;
+            yield return ik.MoveLinear(insertApproach, 0.25f, alignWristYaw);
+
+            // 2. 상공으로 안전 상승 (차체 간섭 방지)
+            Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
+            yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
+
+            // 3. 폐기함(RejectBin) 상단 개구부 상공으로 선회 이동
+            Vector3 dropPos = GetRejectBinDropPosition();
+            SetState(RobotState.Moving, $"폐기함 상공({dropPos.x:F2}, {dropPos.y:F2}, {dropPos.z:F2})으로 선회 이동 중...");
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.MoveTo(dropPos, null);
         }
 
         yield return new WaitForSeconds(0.2f);
 
-        // 7. 스냅 고정 및 결합 틀어짐 적용 (FR-07, FR-08)
-        Status = "7. 스냅 결합 및 결합 오차 적용 (FR-08)";
-        Debug.Log($"[AssemblySequence] {Status}");
+        // 4. 그리퍼 개방 및 클로 물리 낙하 (Gravity Drop)
+        SetState(RobotState.Working, "폐기함으로 클로 물리 투하 (Gravity Drop)");
+        if (gripper != null)
+        {
+            yield return gripper.Open();
+        }
 
-        // 결합 틀어짐 확률 계산 (FR-08)
-        // 결합 틀어짐 각도 결정 (직접 지정된 오차 -> 오버라이드 확률 -> 기본 DefectProbability 순)
+        if (clawPart != null)
+        {
+            clawPart.SetParent(null, true);
+            var rb = clawPart.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                rb.linearVelocity = Vector3.down * 0.4f; // 자연스러운 하향 낙하 초속
+            }
+        }
+
+        yield return new WaitForSeconds(0.6f);
+
+        // 5. 클로 폐기(Discarded) 및 차체(베이스) 조립 불량(PartLoss) 기록·카운터·배출 이벤트 발행
+        string clawId = (currentPartInfo != null && !string.IsNullOrEmpty(currentPartInfo.id))
+            ? currentPartInfo.id
+            : (clawPart != null ? clawPart.name : "CLAW_PART");
+
+        ProcessCounters.Add(CounterType.Discarded);
+        InspectEventBus.PublishExit(new PartExitEvent(clawId, ExitReason.Discarded, DefectType.None, Time.time));
+
+        if (currentBase != null)
+        {
+            currentBase.defectType = DefectType.PartLoss;
+        }
+        else if (targetRobotBase != null)
+        {
+            var baseComp = targetRobotBase.GetComponent<PartBase>();
+            if (baseComp != null) baseComp.defectType = DefectType.PartLoss;
+        }
+
+        string baseId = (currentBase != null && !string.IsNullOrEmpty(currentBase.id))
+            ? currentBase.id
+            : (targetRobotBase != null ? targetRobotBase.name : "BASE_MOTO");
+
+        ProcessCounters.Add(CounterType.Defective);
+        InspectEventBus.PublishExit(new PartExitEvent(baseId, ExitReason.Defective, DefectType.PartLoss, Time.time));
+        Debug.LogWarning($"[AssemblySequence] 📢 조립 최종 실패 처리 완료 | 클로 폐기(Discarded): {clawId}, 차체 불량 배출(Defective/PartLoss): {baseId}");
+
+        // 6. 로봇 홈 복귀
+        if (ik != null)
+        {
+            SetState(RobotState.Moving, "로봇 안전 홈 복귀 중...");
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.ReturnToHomeJoints(2.2f);
+        }
+
+        // 7. 로봇 관리자 점검 경보 (RobotState.Error)
+        LastAssemblyOk = false;
+        SetState(RobotState.Error, $"조립 오류 ({maxRetryCount}회 재시도 실패, 클로 폐기 및 베이스 불량 배출)");
+        Debug.LogError($"[AssemblySequence] 🚨 관리자 점검 경보: {Status}");
+    }
+
+    /// <summary>
+    /// 결합 성공 시 7단계 스냅 체결 및 8단계 그리퍼 분리, 안전 후퇴 및 홈 복귀 루틴
+    /// </summary>
+    private IEnumerator FinishSnapAndReleaseRoutine(Vector3 slotCenter, Vector3 insertApproach, Vector3 insertDir, float alignWristYaw, float? overrideDefectProbability, float? forcedAngleError, int attemptIndex, float overallStartTime)
+    {
+        string retryPrefix = attemptIndex > 0 ? $"[재시도 {attemptIndex}/{maxRetryCount}] " : "";
+
+        // 7. 스냅 고정 및 결합 틀어짐 적용 (FR-07, FR-08)
+        SetState(RobotState.Assembling, $"{retryPrefix}7. 스냅 결합 및 결합 오차 적용 (FR-08)");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
+
         float angleError = forcedAngleError.HasValue
             ? forcedAngleError.Value
             : CalculateAngleError(overrideDefectProbability);
@@ -966,7 +1416,7 @@ public partial class AssemblySequence : MonoBehaviour
         LastAngleError = angleError;
         bool isAngleDefect = Mathf.Abs(angleError) >= defectiveAngleRange.x;
 
-        // 소켓에 완벽 스냅 결합 및 오차 주입 (내부에서 PartInfo / BaseInfo.defectType 기록)
+        // 소켓에 완벽 스냅 결합 및 오차 주입
         SnapClawToSocket(angleError);
 
         if (currentPartInfo != null)
@@ -974,16 +1424,19 @@ public partial class AssemblySequence : MonoBehaviour
             currentPartInfo.assemblyAngleError = angleError;
         }
 
-        LastAssemblyOk = true; // ★ 7단계 스냅 결합 완료 즉시 조립 성공 판정 (20초 이내 결합 요건 만족)
+        LastAssemblyOk = true;
+
+        float snapElapsed = Time.time - overallStartTime;
+        LastElapsedTime = snapElapsed;
 
         DefectType finalDefect = isAngleDefect ? DefectType.AngleError : DefectType.None;
-        Debug.Log($"[AssemblySequence] 결합 완료 | 틀어짐 각도: {angleError:F2}° (불량 유형: {finalDefect})");
+        Debug.Log($"[AssemblySequence] ⭐ {retryPrefix}[7단계 결합 완료] 결합 소요시간: {snapElapsed:F2}초 (기준: {assemblyTimeoutSeconds:F0}초 이내, 목표: 14~16초) | 틀어짐 각도: {angleError:F2}° (불량 유형: {finalDefect})");
 
         yield return new WaitForSeconds(0.15f);
 
         // 8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴
-        Status = "8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴";
-        Debug.Log($"[AssemblySequence] {Status}");
+        SetState(RobotState.Working, $"{retryPrefix}8. 완제품 그리퍼 분리 (Release) 및 안전 후퇴");
+        Debug.Log($"[AssemblySequence] (경과: {Time.time - overallStartTime:F2}초) {Status}");
 
         if (gripper != null)
         {
@@ -1002,21 +1455,71 @@ public partial class AssemblySequence : MonoBehaviour
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
 
+            // 8-1. 그리퍼가 시야에서 완전히 벗어난 직후 카메라3 완제품 비전 촬영 및 결합 각도 판정 (FR-09)
+            if (camera3Inspector != null)
+            {
+                SetState(RobotState.Working, $"{retryPrefix}8-1. 카메라3 완제품 비전 촬영 및 결합 각도 판정");
+                yield return camera3Inspector.CaptureAndInspectRoutine(currentPartInfo, currentBase, 0.1f);
+            }
+
+            // 8-2. 컨베이어 및 스토퍼가 연결되어 있다면 완제품 이송 재개 (WBS 6.5, 7.3)
+            if (outputConveyor != null)
+            {
+                outputConveyor.ResumeConveyor();
+            }
+            if (outputStopper != null)
+            {
+                yield return outputStopper.Resume();
+            }
+
             // 대기 자세(Home)로 초기 관절 각도로 안전 복귀
             ik.pointDown = true;
             ik.useTargetLookDir = false;
-            yield return ik.ReturnToHomeJoints(1.0f);
+            yield return ik.ReturnToHomeJoints(2.2f);
         }
 
         LastAssemblyOk = true;
-        Status = $"조립 완료 (오차: {angleError:F1}°, 불량: {isAngleDefect})";
-        Debug.Log($"[AssemblySequence] {Status}");
-        IsBusy = false;
+        float totalElapsed = Time.time - overallStartTime;
+        string retrySuccessTag = attemptIndex > 0 ? $" [재시도 {attemptIndex}회 성공]" : "";
+        SetState(RobotState.Idle, $"조립 완료{retrySuccessTag} (결합: {snapElapsed:F2}초, 전체: {totalElapsed:F2}초, 오차: {angleError:F1}°)");
+        Debug.Log($"[AssemblySequence] 🏁 {retryPrefix}[시퀀스 전체 완료] 총 소요: {totalElapsed:F2}초 (결합 시점: {snapElapsed:F2}초) - {Status}");
+    }
+
+        /// <summary>
+    /// 이전 시도 실패 시 하위 호환용 리셋 루틴
+    /// </summary>
+    public IEnumerator ResetAttemptRoutine()
+    {
+        ResetClawToInitialState();
+        if (gripper != null) yield return gripper.Open();
+        if (ik != null)
+        {
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.ReturnToHomeJoints(1.2f);
+        }
+        yield return new WaitForSeconds(0.2f);
+    }
+
+    /// <summary>
+    /// 하위 호환용 복구 코루틴
+    /// </summary>
+    public IEnumerator RecoverFailedAttemptRoutine()
+    {
+        ResetClawToInitialState();
+        if (gripper != null) yield return gripper.Open();
+        if (ik != null)
+        {
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.ReturnToHomeJoints(1.5f);
+        }
+        yield return new WaitForSeconds(0.1f);
     }
 
     #endregion
 
-    #region 다이어그램 폐기 (Reject) 및 재투입 (Refeed)
+        #region 다이어그램 폐기 (Reject) 및 재투입 (Refeed)
 
 
     /// <summary>
@@ -1027,7 +1530,7 @@ public partial class AssemblySequence : MonoBehaviour
     {
         if (IsBusy) yield break;
 
-        Status = "[재투입] 새 부품으로 재조립 준비";
+        SetState(RobotState.Idle, "[재투입] 새 부품으로 재조립 준비");
         Debug.Log($"[AssemblySequence] {Status}");
 
         // 1. 로봇 및 부품을 완벽하게 홈 상태로 동기 대기 리셋
