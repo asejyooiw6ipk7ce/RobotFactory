@@ -1,106 +1,221 @@
 using System.Collections;
 using UnityEngine;
 
-public class InspectRejectSequence : MonoBehaviour
+public partial class InspectRejectSequence : MonoBehaviour
 {
+    [Header("ë¡œë´‡ ë° ê·¸ë¦¬í¼ ì—°ê²°")]
     public ArmIK ik;
     public GripperController gripper;
 
-    public Transform pickPoint;   //ºÒ·® ºÎÇ°ÀÌ ÀÖ´Â À§Ä¡
-    public Transform rejectPose;  //Æó±â ¹Ú½º À§ ³õ´Â À§Ä¡
+    [Header("ëª©í‘œ ìœ„ì¹˜ íŠ¸ëœìŠ¤í¼")]
+    public Transform pickPoint;   // ë¶ˆëŸ‰ ë¶€í’ˆì´ ìˆëŠ” ìœ„ì¹˜
+    public Transform rejectPose;  // íê¸° ë°•ìŠ¤ ìœ„ ë†“ëŠ” ìœ„ì¹˜
 
-    public float liftHeight = 0.1f; //Áı±â,³õ±â ÀüÈÄ·Î À§·Î ¿Ã¶ó°¥ ³ôÀÌ (m)
-    public float moveSpeed = 0.2f; //Á÷¼± ÀÌµ¿ ¼Óµµ
+    [Header("ì´ë™ ë° ë†’ì´ ì„¤ì •")]
+    public float liftHeight = 0.15f;               // ì§‘ê¸°/ë†“ê¸° ì „í›„ ìˆ˜ì§ ìƒìŠ¹ ë†’ì´ (m)
+    public float moveSpeed = 0.25f;                // ì§ì„  ì´ë™ ì†ë„ (m/s)
+    public float gripWidthMm = 48f;                // ê·¸ë¦¬í¼ ëª©í‘œ íŒŒì§€ í­ (mm)
+    public float defaultPickYaw = 90f;             // ìˆ˜ì§ í•˜ê°• ê¸°ë³¸ ì†ëª© ê°ë„ (deg)
+    public float safeTransitHeightOffset = 0.65f;  // ë¡œë´‡ ë² ì´ìŠ¤ ê¸°ì¤€ ì•ˆì „ ìƒê³µ í†µê³¼ ê³ ë„ ì˜¤í”„ì…‹ (m)
 
-    [Header("¸¶Áö¸· Æó±â °á°ú")]
-    public float maxGraspTries = 100;
-    public bool LastRejectOK {get; private set;}  //true: Æó±â ¼º°ø , false: Àâ±â ½ÇÆĞ µîÀ¸·Î Æó±â ½ÇÆĞ
+    [Header("íê¸° ê²°ê³¼ ë° ìƒíƒœ ëª¨ë‹ˆí„°")]
+    public int maxGraspTries = 3;                  // íŒŒì§€ ìµœëŒ€ ì¬ì‹œë„ íšŸìˆ˜
+    public bool LastRejectOK { get; private set; } // true: íê¸° ì„±ê³µ, false: ì¡ê¸° ì‹¤íŒ¨ ë“±ìœ¼ë¡œ íê¸° ì‹¤íŒ¨
+    public bool IsBusy { get; private set; }       // ì‹œí€€ìŠ¤ ì‹¤í–‰ ì¤‘ ì—¬ë¶€
+    public string Status { get; private set; } = "ëŒ€ê¸°";
 
-    //°Ë»ç °á°ú fail
+    private void Awake()
+    {
+        AutoFindReferences();
+    }
+
+    private void Start()
+    {
+        AutoFindReferences();
+        ApplyGripperCloseTarget();
+    }
+
+    private void SetState(string status)
+    {
+        Status = status;
+        Debug.Log($"[InspectRejectSequence] {Status}");
+    }
+
+    /// <summary>
+    /// ë¡œë´‡ ë° ê·¸ë¦¬í¼ ì»´í¬ë„ŒíŠ¸ ìë™ íƒìƒ‰ ë° ì—°ê²°
+    /// </summary>
+    public void AutoFindReferences()
+    {
+        if (ik == null)
+        {
+            ik = GetComponent<ArmIK>();
+            if (ik == null) ik = GetComponentInParent<ArmIK>();
+            if (ik == null) ik = FindAnyObjectByType<ArmIK>();
+        }
+
+        if (gripper == null)
+        {
+            gripper = GetComponentInChildren<GripperController>();
+            if (gripper == null && ik != null)
+            {
+                gripper = ik.GetComponentInChildren<GripperController>();
+            }
+            if (gripper == null) gripper = FindAnyObjectByType<GripperController>();
+        }
+    }
+
+    /// <summary>
+    /// ê·¸ë¦¬í¼ ë‹«í˜ í•œê³„ê°’ì„ gripWidthMmì— ë§ì¶° ì„¤ì •í•˜ì—¬ ê´€í†µ ë°©ì§€ ë° ê°ì§€ ì•ˆì •í™”
+    /// </summary>
+    public void ApplyGripperCloseTarget()
+    {
+        if (gripper == null) AutoFindReferences();
+        if (gripper != null)
+        {
+            float targetM = Mathf.Max(0f, (48f - gripWidthMm) * 0.5f * 0.001f);
+            gripper.leftClose = targetM;
+            gripper.rightClose = targetM;
+            gripper.useGraspCheck = false;
+        }
+    }
+
+    /// <summary>
+    /// ë¶ˆëŸ‰ ë¶€í’ˆì„ ìˆ˜ì§ìœ¼ë¡œ íŒŒì§€í•˜ì—¬ íê¸°í•¨ìœ¼ë¡œ ë°°ì¶œí•˜ëŠ” ì½”ë£¨í‹´
+    /// </summary>
     public IEnumerator Reject()
     {
-        LastRejectOK = false; //½ÃÀÛÇÒ ¶§´Â ½ÇÆĞ·Î µÒ
+        if (IsBusy) yield break;
+        IsBusy = true;
+        LastRejectOK = false;
+        SetState("íê¸° ì‹œí€€ìŠ¤ ì‹œì‘");
+
+        AutoFindReferences();
+        ApplyGripperCloseTarget();
+
+        if (ik == null)
+        {
+            Debug.LogError("[InspectRejectSequence] ArmIKê°€ ì—°ê²°ë˜ì§€ ì•Šì•„ ì‹œí€€ìŠ¤ë¥¼ ì¤‘ë‹¨í•©ë‹ˆë‹¤.");
+            SetState("ì˜¤ë¥˜: ArmIK ëˆ„ë½");
+            IsBusy = false;
+            yield break;
+        }
+
+        // ArmIK ì´ˆê¸°í™” ë° ë¶€í˜¸ ìº˜ë¦¬ë¸Œë ˆì´ì…˜ ëŒ€ê¸°
+        float waitTimer = 0f;
+        while (!ik.Ready && waitTimer < 3f)
+        {
+            waitTimer += Time.deltaTime;
+            yield return null;
+        }
+
+        // 1. ì´ˆê¸° ê·¸ë¦¬í¼ ê°œë°©
+        SetState("1. ê·¸ë¦¬í¼ ê°œë°©");
+        if (gripper != null)
+        {
+            yield return gripper.Open();
+        }
+
+        if (pickPoint == null || rejectPose == null)
+        {
+            Debug.LogError("[InspectRejectSequence] pickPoint ë˜ëŠ” rejectPoseê°€ ì§€ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.");
+            SetState("ì˜¤ë¥˜: ëª©í‘œ ì¢Œí‘œ ëˆ„ë½");
+            IsBusy = false;
+            yield break;
+        }
 
         Vector3 pick = pickPoint.position;
         Vector3 pickAbove = pick + Vector3.up * liftHeight;
         Vector3 reject = rejectPose.position;
         Vector3 rejectAbove = reject + Vector3.up * liftHeight;
-        //1. ÁıÀ» À§Ä¡ À§·Î ÀÌµ¿
-        yield return ik.MoveTo(pickAbove);
+        float targetYaw = defaultPickYaw;
+
+        // ìˆ˜ì§ í•˜í–¥ ìì„¸ ê³ ì •
+        ik.pointDown = true;
+        ik.useTargetLookDir = false;
+
+        // 2. ìƒê³µ ì•ˆì „ ê³ ë„(Elbow-Up) ê²½ìœ  í›„ í”½ì—… ìƒê³µ ì ‘ê·¼
+        SetState("2. ìƒê³µ ê²½ìœ  ìˆ˜ì§ í”½ì—… ëŒ€ê¸° ìœ„ì¹˜ ì ‘ê·¼");
+        float safeTransitY = Mathf.Max(pickAbove.y + 0.15f, ik.transform.position.y + safeTransitHeightOffset);
+        Vector3 highSafeTransit = new Vector3(pickAbove.x, safeTransitY, pickAbove.z);
+        yield return ik.MoveTo(highSafeTransit, null);
+        yield return ik.MoveLinearSmooth(pickAbove, moveSpeed, targetYaw, false);
 
         bool grasped = false;
 
-        for(int attempt = 1;attempt <= maxGraspTries; attempt++)
+        // 3. ìˆ˜ì§ í•˜ê°• ë° íŒŒì§€ ë£¨í”„
+        for (int attempt = 1; attempt <= maxGraspTries; attempt++)
         {
-            //2. ³»·Á°¡
-            yield return ik.MoveLinear(pick, moveSpeed);
-            // Debug.Log($"[Reject] pick={pick} tip={ik.tip.position}  posErr={ik.PositionError:F4}  angleErr={ik.AngleError:F1}");
-            
-            //[Debug test] ¸ñÇ¥¸¦ ÁØ Á÷ÈÄ, °üÀı º°·Î ½ÇÁ¦ °¢µµ¿Í ¸ñÇ¥ °¢µµ ·Î±× Ãâ·Â
-            // ¸ğµç °üÀı Áß ¾î±ú °üÀıÀÌ ¿ÀÂ÷ Á¦ÀÏ Å­(65µµ)
-            // for (int i = 0; i < ik.joints.Length; i++)
-            // {
-            //     var jb = ik.joints[i];
-            //     if (jb.dofCount == 0) continue;
-            //     Debug.Log($"[Joint {i} {jb.name}] actual={jb.jointPosition[0] * Mathf.Rad2Deg:F1}  target={jb.xDrive.target:F1}  lower={jb.xDrive.lowerLimit:F1}  upper={jb.xDrive.upperLimit:F1} ");
-            //     Debug.Log($"[Joint {i} {jb.name}] stiffness={jb.xDrive.stiffness:F0}  damping={jb.xDrive.damping:F0}  forceLimit={jb.xDrive.forceLimit:F0}");
-            //     // actual : ½ÇÁ¦ °üÀı °¢µµ(µµ) , target : IK°¡ ¿äÃ»ÇÑ ¸ñÇ¥ °¢µµ(µµ) , lower/upper: °üÀı ÇÑ°è °¢µµ(µµ)
-            //     // stiffness: ¸ñÃİ °¢µµ·Î ¼¼°Ô ¹Ğ¾îÁÖ´Â °­µµ , damping: Èçµé¸² Àâ¾ÆÁÖ´Â Á¤µµ , forceLimit: ÃÖ´ë Èû
-            // }
+            SetState($"3. ìˆ˜ì§ í•˜ê°• ë° ê·¸ë¦¬í¼ íŒŒì§€ (ì‹œë„ {attempt}/{maxGraspTries})");
+            ik.pointDown = true;
+            ik.useTargetLookDir = false;
+            yield return ik.MoveLinearSmooth(pick, moveSpeed, targetYaw, false);
 
-            //¾î±ú °üÀı
-            var jb = ik.joints[0];
-            Debug.Log($"[Joint {0} {jb.name}] force={jb.jointForce[0]:F0}");
-            Debug.Log($"[Joint {0} {jb.name}] actual={jb.jointPosition[0] * Mathf.Rad2Deg:F1}  target={jb.xDrive.target:F1}  lower={jb.xDrive.lowerLimit:F1}  upper={jb.xDrive.upperLimit:F1} ");
+            if (gripper != null)
+            {
+                yield return gripper.Close();
 
-            //3. gripper.Close() ; Àâ±â
-            yield return gripper.Close();
+                if (gripper.LastGraspOK)
+                {
+                    grasped = true;
+                    break;
+                }
 
-            //LastGraspOK È®ÀÎ
-            if(gripper.LastGraspOK)
+                Debug.LogWarning($"[InspectRejectSequence] íŒŒì§€ ì‹¤íŒ¨ ({attempt}/{maxGraspTries}) - ì¬ì‹œë„");
+                yield return gripper.Open();
+                yield return ik.MoveLinearSmooth(pickAbove, moveSpeed, targetYaw, false);
+            }
+            else
             {
                 grasped = true;
                 break;
             }
-
-            //Àâ±â ½ÇÆĞ½Ã ´Ù½Ã ½Ãµµ
-            Debug.LogWarning($"[Reject] Àâ±â ½ÇÆĞ ({attempt}/{maxGraspTries}) - ´Ù½Ã ½Ãµµ");
-            yield return gripper.Open();
-            yield return ik.MoveLinear(pickAbove, moveSpeed);
         }
 
-        //´Ù½Ã½Ãµµ È½¼ö ÃÊ°ú
+        // ìµœëŒ€ ì‹œë„ íšŸìˆ˜ ì´ˆê³¼ ì‹œ
         if (!grasped)
         {
-            Debug.LogError("[Reject] Àâ±â ÃÖ´ë È½¼ö ÃÊ°ú - Æó±â ½ÇÆĞ");
-            yield return ik.MoveLinear(pickAbove, moveSpeed);
+            Debug.LogError("[InspectRejectSequence] íŒŒì§€ ìµœëŒ€ ì¬ì‹œë„ ì´ˆê³¼ - íê¸° ì‹¤íŒ¨");
+            SetState("ì˜¤ë¥˜: íŒŒì§€ ì‹¤íŒ¨");
+            yield return ik.MoveLinearSmooth(pickAbove, moveSpeed, targetYaw, false);
             yield return ik.ReturnToHomeJoints();
-            yield break;   // Æó±â ½ÇÆĞ·Î ³¡³¿
+            IsBusy = false;
+            yield break;
         }
 
-        //4. ¿Ã¶ó°¡
-        yield return ik.MoveLinear(pickAbove, moveSpeed);
+        // 4. ìˆ˜ì§ ë¦¬í”„íŒ… (Lift)
+        SetState("4. ìˆ˜ì§ ë¦¬í”„íŒ…");
+        ik.pointDown = true;
+        ik.useTargetLookDir = false;
+        yield return ik.MoveLinearSmooth(pickAbove, moveSpeed, targetYaw);
 
-        //5. rejectPose À§·Î ÀÌµ¿
+        // 5. íê¸°í•¨ ìƒê³µ ì´ë™
+        SetState("5. íê¸°í•¨ ìƒê³µ ì´ë™");
         yield return ik.MoveTo(rejectAbove);
 
-        //6. ³»·Á°¡
+        // 6. íê¸°í•¨ í•˜ê°•
+        SetState("6. íê¸°í•¨ í•˜ê°•");
         yield return ik.MoveLinear(reject, moveSpeed);
 
-        //7. gripper.Open() ; ³õ±â
-        yield return gripper.Open();
+        // 7. ê·¸ë¦¬í¼ ê°œë°© (ë¶€í’ˆ ë†“ê¸°)
+        SetState("7. ë¶€í’ˆ ë†“ê¸°");
+        if (gripper != null)
+        {
+            yield return gripper.Open();
+        }
 
-        //8. ¿Ã¶ó¿À±â
-        yield return ik.MoveLinear(pickAbove, moveSpeed);
-
-        //9. Ä«¿îÆ® ; ProcessCounters.Add(CounterType.Discarded)
+        // 8. íê¸°í•¨ ìƒê³µ ë³µê·€ (Commit 1: ê¸°ì¡´ pickAbove ì˜¤íƒ€ ìˆ˜ì •í•˜ì—¬ rejectAboveë¡œ ì •ìƒ íƒˆì¶œ)
+        SetState("8. íê¸°í•¨ ìƒê³µ íƒˆì¶œ");
         yield return ik.MoveLinear(rejectAbove, moveSpeed);
+
+        // 9. íê¸° ì¹´ìš´íŠ¸ ì§‘ê³„
         ProcessCounters.Add(CounterType.Discarded);
 
-        //10. ´ë±â ÀÚ¼¼·Î º¹±Í
+        // 10. í™ˆ ëŒ€ê¸° ìì„¸ë¡œ ë³µê·€
+        SetState("10. ëŒ€ê¸° ìì„¸ ë³µê·€");
         yield return ik.ReturnToHomeJoints();
 
-        LastRejectOK = true; //¸ğµç ´Ü°è°¡ ³¡³µÀ» ¶§¸¸ ¼º°øÀ¸·Î ¹Ù²Ş
+        LastRejectOK = true;
+        SetState("íê¸° ì™„ë£Œ");
+        IsBusy = false;
     }
-
 }
