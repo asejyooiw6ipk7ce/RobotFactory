@@ -6,43 +6,55 @@ public class ConveyorManager : MonoBehaviour
     [Serializable]
     private class ConveyorLine
     {
-        [Tooltip("이 설정이 관리할 논리 라인 ID")]
+        [Tooltip("이 설정이 관리할 라인 ID")]
         public ConveyorLineId lineId;
 
-        [Tooltip("이 라인에 속한 벨트 렌더러들")]
+        [Tooltip("이 라인에 포함된 벨트 Renderer 전체")]
         public Renderer[] beltRenderers;
 
-        [Tooltip("이 라인에 적용할 벨트 셰이더 속도")]
+        [Tooltip("아이템이 이동할 경로. 진행 순서대로 지정합니다.")]
+        public Transform[] waypoints;
+
+        [Tooltip("도착 시 라인 전체를 멈출 웨이포인트 인덱스")]
+        public int[] stopWaypointIndices;
+
+        [Tooltip("이 라인의 벨트 애니메이션 및 아이템 이동 속도")]
         public float speed = 0.5f;
 
         // 현재 라인이 운전 상태인지 저장합니다.
-        // 전체 일시정지와 구분하기 위해 별도로 보관합니다.
+        // 전체 일시정지 상태와 개별 라인 정지를 구분하는 데 사용합니다.
         [NonSerialized] public bool isRunning;
     }
 
     [Header("라인 설정")]
 
-    // 인스펙터에서 LineA, LineB 등의 설정을 추가합니다.
+    // 라인마다 설정을 하나씩 등록합니다.
+    // 같은 ID를 여러 개 만들지 말고, 한 라인의 Renderer와 경로를 한 설정에 모으세요.
     [SerializeField] private ConveyorLine[] lines;
 
     [Header("시작 설정")]
 
-    // 체크하면 씬 시작 시 모든 라인을 운전 상태로 시작합니다.
+    // 체크하면 씬 시작 시 모든 라인을 운전합니다.
     [SerializeField] private bool startOnAwake;
 
-    // 기존 셰이더 속성 이름을 사용합니다.
-    // "_Spped"는 프로젝트의 셰이더에 맞춰 기존 철자를 유지했습니다.
+    // 기존 셰이더의 프로퍼티 이름입니다.
+    // 프로젝트 셰이더의 철자 "_Spped"를 그대로 사용합니다.
     private static readonly int SpeedIDRotor =
         Shader.PropertyToID("_Spped");
 
     private static readonly int SpeedIDBase =
         Shader.PropertyToID("_Speed");
 
-    // 셰이더 속성을 갱신할 때 재사용합니다.
+    // 렌더러 머티리얼 속성을 갱신할 때 재사용합니다.
     private MaterialPropertyBlock propertyBlock;
 
     // 전체 일시정지 상태입니다.
     private bool isPaused;
+
+    // 아이템이 정지 웨이포인트에 도착하면 작업 처리 쪽에 알립니다.
+    // 매개변수: 라인 ID, 웨이포인트 인덱스, 도착한 아이템
+    public event Action<ConveyorLineId, int, GameObject>
+        OnItemArrivedAtStopPoint;
 
     public bool IsPaused => isPaused;
 
@@ -50,10 +62,10 @@ public class ConveyorManager : MonoBehaviour
     {
         propertyBlock = new MaterialPropertyBlock();
 
-        // 씬 시작 상태를 각 라인에 적용합니다.
         if (lines == null)
             return;
 
+        // 시작 옵션을 각 라인에 적용합니다.
         foreach (ConveyorLine line in lines)
         {
             if (line == null)
@@ -83,13 +95,13 @@ public class ConveyorManager : MonoBehaviour
         return null;
     }
 
-    // 라인의 현재 상태를 벨트 렌더러에 적용합니다.
+    // 라인 상태와 속도를 셰이더에 적용합니다.
     private void ApplyLineSpeed(ConveyorLine line)
     {
         if (line == null || line.beltRenderers == null)
             return;
 
-        // 운전 중이며 전체 일시정지가 아닐 때만 셰이더를 움직입니다.
+        // 정지 또는 전체 일시정지 상태에서는 0을 적용합니다.
         float shaderSpeed =
             line.isRunning && !isPaused
                 ? Mathf.Max(0f, line.speed)
@@ -100,7 +112,7 @@ public class ConveyorManager : MonoBehaviour
             if (beltRenderer == null)
                 continue;
 
-            // 기존 머티리얼 속성은 유지하면서 속성 블록만 갱신합니다.
+            // 기존 머티리얼 속성은 유지하고 컨베이어 속성만 변경합니다.
             beltRenderer.GetPropertyBlock(propertyBlock);
             propertyBlock.SetFloat(SpeedIDRotor, shaderSpeed);
             propertyBlock.SetFloat(SpeedIDBase, shaderSpeed);
@@ -108,7 +120,79 @@ public class ConveyorManager : MonoBehaviour
         }
     }
 
-    // ID에 해당하는 라인 하나를 운전합니다.
+    // 해당 라인의 현재 운전 상태를 반환합니다.
+    public bool IsLineRunning(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+
+        return line != null &&
+               line.isRunning &&
+               !isPaused;
+    }
+
+    // 해당 라인이 움직이는 중이면 속도를 반환합니다.
+    // 정지 또는 일시정지 상태면 0을 반환합니다.
+    public float GetLineSpeed(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+
+        if (line == null || !line.isRunning || isPaused)
+            return 0f;
+
+        return Mathf.Max(0f, line.speed);
+    }
+
+    // 이동기가 사용할 경로를 반환합니다.
+    public Transform[] GetLineWaypoints(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+        return line != null ? line.waypoints : null;
+    }
+
+    // 지정 인덱스가 라인 정지 지점인지 확인합니다.
+    public bool IsStopWaypoint(ConveyorLineId lineId, int waypointIndex)
+    {
+        ConveyorLine line = FindLine(lineId);
+
+        if (line == null || line.stopWaypointIndices == null)
+            return false;
+
+        foreach (int stopIndex in line.stopWaypointIndices)
+        {
+            if (stopIndex == waypointIndex)
+                return true;
+        }
+
+        return false;
+    }
+
+    // 아이템이 정지 지점에 도착했을 때 호출합니다.
+    // 라인을 먼저 정지시킨 뒤 작업 처리 쪽에 이벤트를 보냅니다.
+    public void NotifyItemArrivedAtStopPoint(
+        ConveyorLineId lineId,
+        int waypointIndex,
+        GameObject item)
+    {
+        StopLine(lineId);
+
+        OnItemArrivedAtStopPoint?.Invoke(
+            lineId,
+            waypointIndex,
+            item);
+    }
+
+    // 작업이 끝난 뒤 대기 중인 아이템을 해제하고 라인을 재가동합니다.
+    public void ReleaseItemAndRunLine(
+        ConveyorLineId lineId,
+        ConveyorItemMover mover)
+    {
+        if (mover != null)
+            mover.ReleaseWaitingAtStopPoint();
+
+        RunLine(lineId);
+    }
+
+    // 특정 라인 하나를 운전합니다.
     public void RunLine(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
@@ -119,7 +203,7 @@ public class ConveyorManager : MonoBehaviour
         ApplyLineSpeed(line);
     }
 
-    // ID에 해당하는 라인 하나를 정지합니다.
+    // 특정 라인 하나를 정지합니다.
     public void StopLine(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
@@ -130,32 +214,11 @@ public class ConveyorManager : MonoBehaviour
         ApplyLineSpeed(line);
     }
 
-    // ID에 해당하는 라인이 운전 상태인지 확인합니다.
-    // 전체 일시정지 중이면 실제 이동 중이 아니므로 false를 반환합니다.
-    public bool IsLineRunning(ConveyorLineId lineId)
-    {
-        ConveyorLine line = FindLine(lineId);
-
-        return line != null &&
-               line.isRunning &&
-               !isPaused;
-    }
-
-    // 해당 라인이 실제 운전 중일 때만 설정 속도를 반환합니다.
-    // 정지 또는 전체 일시정지 상태면 아이템 이동 속도로 0을 반환합니다.
-    public float GetLineSpeed(ConveyorLineId lineId)
-    {
-        ConveyorLine line = FindLine(lineId);
-
-        if (line == null || !line.isRunning || isPaused)
-            return 0f;
-
-        return line.speed;
-    }
-
-    // 등록된 모든 라인의 운전 상태를 켭니다.
+    // 등록된 모든 라인을 운전합니다.
     public void StartAll()
     {
+        isPaused = false;
+
         if (lines == null)
             return;
 
@@ -185,8 +248,7 @@ public class ConveyorManager : MonoBehaviour
         }
     }
 
-    // 모든 라인을 일시정지합니다.
-    // 각 라인의 운전 상태는 보존하므로 ResumeAll에서 원래 상태로 돌아갑니다.
+    // 각 라인의 운전 상태를 보존한 채 전체 일시정지합니다.
     public void PauseAll()
     {
         isPaused = true;
@@ -211,7 +273,7 @@ public class ConveyorManager : MonoBehaviour
             ApplyLineSpeed(line);
     }
 
-    // 특정 라인의 속도를 바꾸고 즉시 셰이더에 적용합니다.
+    // 특정 라인의 속도를 설정합니다.
     public void SetLineSpeed(ConveyorLineId lineId, float speed)
     {
         ConveyorLine line = FindLine(lineId);
@@ -235,6 +297,50 @@ public class ConveyorManager : MonoBehaviour
 
             line.speed = Mathf.Max(0f, speed);
             ApplyLineSpeed(line);
+        }
+    }
+
+    // 선택된 매니저의 라인 경로를 Scene 뷰에 표시합니다.
+    private void OnDrawGizmosSelected()
+    {
+        if (lines == null)
+            return;
+
+        foreach (ConveyorLine line in lines)
+        {
+            if (line == null || line.waypoints == null)
+                continue;
+
+            Gizmos.color = Color.cyan;
+
+            for (int i = 0; i < line.waypoints.Length - 1; i++)
+            {
+                if (line.waypoints[i] != null &&
+                    line.waypoints[i + 1] != null)
+                {
+                    Gizmos.DrawLine(
+                        line.waypoints[i].position,
+                        line.waypoints[i + 1].position);
+                }
+            }
+
+            // 정지 지점은 노란 구체로 표시합니다.
+            if (line.stopWaypointIndices == null)
+                continue;
+
+            Gizmos.color = Color.yellow;
+
+            foreach (int stopIndex in line.stopWaypointIndices)
+            {
+                if (stopIndex >= 0 &&
+                    stopIndex < line.waypoints.Length &&
+                    line.waypoints[stopIndex] != null)
+                {
+                    Gizmos.DrawSphere(
+                        line.waypoints[stopIndex].position,
+                        0.08f);
+                }
+            }
         }
     }
 }
