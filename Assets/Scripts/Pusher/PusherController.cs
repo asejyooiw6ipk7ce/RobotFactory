@@ -1,52 +1,55 @@
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// ì»¨ë² ì´ì–´ ì •ì§€ì ì— ë„ì°©í•œ ë¬¼í’ˆ ì¤‘ ë¶ˆëŸ‰í’ˆì„ ê°ì§€í•˜ì—¬ ë°€ì–´ë‚´ëŠ” í‘¸ì…” ì•¡ì¶”ì—ì´í„° ì œì–´ê¸°
+/// - ì»¨ë² ì´ì–´ í™˜ìŠ¹ ëª¨ë“œ: ë¶ˆëŸ‰í’ˆì„ ë°€ì–´ì„œ ë§ì€í¸ ì»¨ë² ì´ì–´(ì˜ˆ: Reject ë¼ì¸)ë¡œ ì´ê´€ (Line A)
+/// - ë‹¨ìˆœ ë°€ì–´ë‚´ê¸° ëª¨ë“œ: ëª©ì ì§€ ì»¨ë² ì´ì–´ê°€ ì—†ì„ ê²½ìš° ìƒì(RejectBox)ë¡œ ë¬¼ë¦¬ ë‚™í•˜ ë°°ì¶œ (Line C)
+/// </summary>
 public class PusherController : MonoBehaviour
 {
-    [Header("ÄÁº£ÀÌ¾î ¼³Á¤")]
-
-    // ÄÁº£ÀÌ¾î ¶óÀÎ°ú Á¤Áö ÁöÁ¡À» °ü¸®ÇÏ´Â Áß¾Ó ¸Å´ÏÀúÀÔ´Ï´Ù.
+    [Header("ì»¨ë² ì´ì–´ ì„¤ì •")]
+    [Tooltip("ì¤‘ì•™ ì»¨ë² ì´ì–´ ë§¤ë‹ˆì € ì°¸ì¡°")]
     [SerializeField] private ConveyorManager conveyorManager;
 
-    // Çª¼Å°¡ ¼³Ä¡µÈ ¿ø·¡ ¶óÀÎÀÔ´Ï´Ù.
+    [Tooltip("í‘¸ì…”ê°€ ìœ„ì¹˜í•œ ì†ŒìŠ¤ ì»¨ë² ì´ì–´ ë¼ì¸ ID")]
     [SerializeField] private ConveyorLineId sourceLineId;
 
-    // ¿ø·¡ ¶óÀÎ Waypoints ¹è¿­¿¡¼­ Çª¼Å°¡ ÀÛµ¿ÇÒ Á¤ÁöÁ¡ ÀÎµ¦½ºÀÔ´Ï´Ù.
+    [Tooltip("ì†ŒìŠ¤ ë¼ì¸ì—ì„œ í‘¸ì…”ê°€ ê°ì§€í•  ì •ì§€ì  ì›¨ì´í¬ì¸íŠ¸ ì¸ë±ìŠ¤")]
     [SerializeField] private int stopWaypointIndex;
 
-    // ºÒ·®Ç°À» º¸³¾ ¸ñÀûÁö ¶óÀÎÀÔ´Ï´Ù.
+    [Tooltip("ë¶ˆëŸ‰í’ˆì„ ë³´ë‚¼ ëª©ì ì§€ ì»¨ë² ì´ì–´ ë¼ì¸ ID (ìƒìë¡œ ë°€ì–´ë‚´ëŠ” ê²½ìš° ê¸°ë³¸ê°’ ìœ ì§€ ê°€ëŠ¥)")]
     [SerializeField] private ConveyorLineId destinationLineId = ConveyorLineId.Reject;
 
-    // ¸ñÀûÁö ¶óÀÎÀÇ Waypoints ¹è¿­¿¡¼­ ÀÌµ¿À» ½ÃÀÛÇÒ ÀÎµ¦½ºÀÔ´Ï´Ù.
+    [Tooltip("ëª©ì ì§€ ì»¨ë² ì´ì–´ì˜ ì‹œì‘ ì›¨ì´í¬ì¸íŠ¸ ì¸ë±ìŠ¤")]
     [SerializeField] private int destinationStartWaypointIndex;
 
-    // Reject ¶óÀÎ¿¡ Waypoints°¡ ¾øÀ» ¶§ »ç¿ëÇÒ ÁøÇà ¹æÇâÀÔ´Ï´Ù.
-    // ÀÌ ¿ÀºêÁ§Æ®ÀÇ ÆÄ¶õ»ö ZÃàÀÌ Reject ÄÁº£ÀÌ¾î ÁøÇà ¹æÇâÀ» ÇâÇÏµµ·Ï ³õ½À´Ï´Ù.
+    [Tooltip("ëª©ì ì§€ ì»¨ë² ì´ì–´ ì§„ì… ë°©í–¥ ê¸°ì¤€ì  Transform")]
     [SerializeField] private Transform destinationDirectionPoint;
 
-    [Header("Çª¼Å À§Ä¡")]
-
-    // ½ÇÁ¦·Î ºÎÇ°À» ¹Ì´Â Çª¼Å ÇìµåÀÔ´Ï´Ù.
+    [Header("í‘¸ì…” ê¸°êµ¬ë¶€")]
+    [Tooltip("ë¬¼í’ˆì„ ë°€ì–´ë‚´ëŠ” í‘¸ì…” í—¤ë“œ Transform")]
     [SerializeField] private Transform pusherHead;
 
-    // Çª¼Å°¡ Æò¼Ò¿¡ ´ë±âÇÒ À§Ä¡ÀÔ´Ï´Ù.
+    [Tooltip("í‘¸ì…” í—¤ë“œì˜ ëŒ€ê¸°(í›„í‡´) ìœ„ì¹˜ Transform")]
     [SerializeField] private Transform retractedPoint;
 
-    // Çª¼Å°¡ ºÎÇ°À» ¹Ğ ¶§ µµ´ŞÇÒ À§Ä¡ÀÔ´Ï´Ù.
+    [Tooltip("í‘¸ì…” í—¤ë“œì˜ ì „ì§„ ìœ„ì¹˜ Transform")]
     [SerializeField] private Transform extendedPoint;
 
-    [Header("µ¿ÀÛ ¼³Á¤")]
-
-    // Çª¼Å Çìµå°¡ ¿òÁ÷ÀÌ´Â ¼ÓµµÀÔ´Ï´Ù.
+    [Header("ë™ì‘ íŒŒë¼ë¯¸í„°")]
+    [Tooltip("í‘¸ì…” í—¤ë“œ ì „ì§„/í›„í‡´ ì†ë„")]
     [SerializeField] private float pusherSpeed = 0.8f;
 
-    // ºÎÇ°À» ¹Î µÚ Çª¼Å°¡ Àá½Ã ¸Ó¹«´Â ½Ã°£ÀÔ´Ï´Ù.
+    [Tooltip("ì „ì§„ ì™„ë£Œ í›„ ìœ ì§€ ëŒ€ê¸° ì‹œê°„(ì´ˆ)")]
     [SerializeField] private float holdTime = 0.2f;
 
     private Rigidbody pusherRigidbody;
     private bool isBusy;
 
-    // ºÒ·®Ç°À» ¹Ğ¾î³» Reject ¶óÀÎÀ¸·Î ³Ñ±ä µÚ ¹ßÇà (ProcessController°¡ º£ÀÌ½º »ı¼º Æ®¸®°Å·Î »ç¿ë)
+    /// <summary>
+    /// ë¶ˆëŸ‰í’ˆ ë°°ì¶œ ì™„ë£Œ ì‹œ ë°œìƒí•˜ëŠ” ì´ë²¤íŠ¸
+    /// </summary>
     public event System.Action<GameObject> ItemPushed;
 
     private void Awake()
@@ -55,21 +58,16 @@ public class PusherController : MonoBehaviour
             return;
 
         pusherRigidbody = pusherHead.GetComponent<Rigidbody>();
-
         if (pusherRigidbody == null)
         {
-            Debug.LogError(
-                "PusherController: Pusher Head¿¡ Rigidbody°¡ ÇÊ¿äÇÕ´Ï´Ù.",
-                this);
+            Debug.LogError("PusherController: Pusher Headì— Rigidbodyê°€ í•„ìš”í•©ë‹ˆë‹¤.", this);
             return;
         }
 
-        // Çª¼Å Çìµå´Â Áß·Â¿¡ ¶³¾îÁöÁö ¾ÊÀ¸¸é¼­ ¹°¸® Ãæµ¹Àº ÇÏµµ·Ï ¼³Á¤ÇÕ´Ï´Ù.
         pusherRigidbody.isKinematic = true;
         pusherRigidbody.useGravity = false;
         pusherRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
-        // ½ÃÀÛÇÒ ¶§ Çª¼Å Çìµå¸¦ ´ë±â À§Ä¡¿¡ ³õ½À´Ï´Ù.
         if (retractedPoint != null)
         {
             pusherRigidbody.position = retractedPoint.position;
@@ -81,8 +79,7 @@ public class PusherController : MonoBehaviour
     {
         if (conveyorManager != null)
         {
-            conveyorManager.OnItemArrivedAtStopPoint +=
-                HandleItemArrivedAtStopPoint;
+            conveyorManager.OnItemArrivedAtStopPoint += HandleItemArrivedAtStopPoint;
         }
     }
 
@@ -90,8 +87,7 @@ public class PusherController : MonoBehaviour
     {
         if (conveyorManager != null)
         {
-            conveyorManager.OnItemArrivedAtStopPoint -=
-                HandleItemArrivedAtStopPoint;
+            conveyorManager.OnItemArrivedAtStopPoint -= HandleItemArrivedAtStopPoint;
         }
     }
 
@@ -99,75 +95,30 @@ public class PusherController : MonoBehaviour
     {
         if (conveyorManager == null)
         {
-            Debug.LogError(
-                "PusherController: ConveyorManager°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
-                this);
+            Debug.LogError("PusherController: ConveyorManagerê°€ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
             return;
         }
 
         if (pusherHead == null)
-            Debug.LogError("PusherController: Pusher Head°¡ ºñ¾î ÀÖ½À´Ï´Ù.", this);
-
-        if (pusherRigidbody == null)
-            Debug.LogError("PusherController: Pusher HeadÀÇ Rigidbody¸¦ Ã£Áö ¸øÇß½À´Ï´Ù.", this);
+            Debug.LogError("PusherController: Pusher Headê°€ ì§€ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
 
         if (retractedPoint == null)
-            Debug.LogError("PusherController: Retracted Point°¡ ºñ¾î ÀÖ½À´Ï´Ù.", this);
+            Debug.LogError("PusherController: Retracted Pointê°€ ì§€ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
 
         if (extendedPoint == null)
-            Debug.LogError("PusherController: Extended Point°¡ ºñ¾î ÀÖ½À´Ï´Ù.", this);
-
-        if (destinationLineId == sourceLineId)
-        {
-            Debug.LogError(
-                "PusherController: ¸ñÀûÁö ¶óÀÎÀº ¿ø·¡ ¶óÀÎ°ú ´Ù¸¥ Reject ¶óÀÎÀ¸·Î ¼³Á¤ÇØ¾ß ÇÕ´Ï´Ù.",
-                this);
-        }
-
-        // Reject ¶óÀÎ¿¡ Waypoints°¡ ÀÖÀ¸¸é ½ÃÀÛ ÀÎµ¦½º°¡ ¹è¿­ ¹üÀ§ ¾ÈÀÎÁö È®ÀÎÇÕ´Ï´Ù.
-        Transform[] destinationWaypoints =
-            conveyorManager.GetLineWaypoints(destinationLineId);
-
-        if (destinationWaypoints != null &&
-            destinationWaypoints.Length > 0)
-        {
-            if (destinationStartWaypointIndex < 0 ||
-                destinationStartWaypointIndex >= destinationWaypoints.Length)
-            {
-                Debug.LogError(
-                    "PusherController: Destination Start Waypoint Index°¡ Reject ¶óÀÎ Waypoints ¹üÀ§¸¦ ¹ş¾î³µ½À´Ï´Ù.",
-                    this);
-            }
-        }
-        else if (destinationDirectionPoint == null)
-        {
-            // Waypoints°¡ ¾ø´Ù¸é Á÷¼± ÀÌµ¿¿¡ »ç¿ëÇÒ ¹æÇâÀÌ ÇÊ¿äÇÕ´Ï´Ù.
-            Debug.LogError(
-                "PusherController: Reject ¶óÀÎ¿¡ Waypoints°¡ ¾øÀ¸¹Ç·Î Destination Direction Point¸¦ ¿¬°áÇØ¾ß ÇÕ´Ï´Ù.",
-                this);
-        }
-
-        if (pusherHead != null &&
-            !HasSolidCollider(pusherHead.gameObject))
-        {
-            Debug.LogError(
-                "PusherController: Pusher Head¿¡ Is Trigger°¡ ²¨Áø Collider°¡ ÇÊ¿äÇÕ´Ï´Ù.",
-                this);
-        }
+            Debug.LogError("PusherController: Extended Pointê°€ ì§€ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
     }
 
-    // ¸Å´ÏÀú°¡ ºÎÇ°ÀÇ Á¤ÁöÁ¡ µµÂøÀ» ¾Ë¸®¸é È£ÃâµË´Ï´Ù.
+    /// <summary>
+    /// ì»¨ë² ì´ì–´ ì •ì§€ì  ë„ì°© ì´ë²¤íŠ¸ í•¸ë“¤ëŸ¬
+    /// </summary>
     private void HandleItemArrivedAtStopPoint(
         ConveyorLineId arrivedLineId,
         int arrivedWaypointIndex,
         GameObject arrivedItem)
     {
-        // Çª¼Å°¡ ´ã´çÇÏ´Â ¶óÀÎÀÇ ÁöÁ¤µÈ Á¤ÁöÁ¡ÀÎÁö È®ÀÎÇÕ´Ï´Ù.
-        if (arrivedLineId != sourceLineId ||
-            arrivedWaypointIndex != stopWaypointIndex)
-        {
+        if (arrivedLineId != sourceLineId || arrivedWaypointIndex != stopWaypointIndex)
             return;
-        }
 
         if (arrivedItem == null || isBusy)
             return;
@@ -175,125 +126,149 @@ public class PusherController : MonoBehaviour
         StartCoroutine(ProcessItem(arrivedItem));
     }
 
-    // Á¤»ó ºÎÇ°Àº Åë°ú½ÃÅ°°í ºÒ·®Ç°Àº ¹Ğ¾î Reject ¶óÀÎÀ¸·Î ³Ñ±é´Ï´Ù.
+    /// <summary>
+    /// ë„ì°© ë¬¼í’ˆì˜ ë¶ˆëŸ‰ ì—¬ë¶€ë¥¼ ì¢…í•© íŒì •í•˜ì—¬ ë°°ì¶œ ì²˜ë¦¬
+    /// </summary>
     private IEnumerator ProcessItem(GameObject arrivedItem)
     {
         isBusy = true;
 
-        Item item = arrivedItem.GetComponent<Item>();
-        ConveyorItemMover mover =
-            arrivedItem.GetComponent<ConveyorItemMover>();
+        Item item = arrivedItem.GetComponent<Item>() 
+                 ?? arrivedItem.GetComponentInParent<Item>() 
+                 ?? arrivedItem.GetComponentInChildren<Item>();
+        ConveyorItemMover mover = arrivedItem.GetComponent<ConveyorItemMover>()
+                               ?? arrivedItem.GetComponentInParent<ConveyorItemMover>()
+                               ?? arrivedItem.GetComponentInChildren<ConveyorItemMover>();
 
-        // Á¤»ó ºÎÇ°ÀÌ¸é Çª¼Å¸¦ ¿òÁ÷ÀÌÁö ¾Ê°í ¿ø·¡ ¶óÀÎÀ» ´Ù½Ã ½ÃÀÛÇÕ´Ï´Ù.
-        if (item == null || item.itemType != ItemType.Defective)
+        // 1. ë¶ˆëŸ‰ íŒì •: ì–‘í’ˆì´ë©´ í‘¸ì…”ë¥¼ ë°€ì§€ ì•Šê³  ì»¨ë² ì´ì–´ ë¼ì¸ì„ ê·¸ëŒ€ë¡œ ì¬ê°€ë™
+        if (!IsDefectiveItem(arrivedItem))
         {
-            conveyorManager.ReleaseItemAndRunLine(
-                sourceLineId,
-                mover);
-
+            conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
             isBusy = false;
             yield break;
         }
 
-        // Çª¼Å À§Ä¡ ¼³Á¤ÀÌ ºüÁ³´Ù¸é ºÎÇ°À» Á¤ÁöÁ¡¿¡¼­ Ç®¾îÁİ´Ï´Ù.
-        if (pusherRigidbody == null ||
-            retractedPoint == null ||
-            extendedPoint == null)
+        // 2. í‘¸ì…” ê¸°êµ¬ë¶€ ë° ë¶€í’ˆ ìƒíƒœ ê²€ì¦
+        if (pusherRigidbody == null || retractedPoint == null || extendedPoint == null)
         {
-            Debug.LogError(
-                "PusherController: Çª¼Å À§Ä¡ ¶Ç´Â Rigidbody ¼³Á¤ÀÌ ºüÁ³½À´Ï´Ù.",
-                this);
-
-            conveyorManager.ReleaseItemAndRunLine(
-                sourceLineId,
-                mover);
-
+            Debug.LogError("PusherController: í‘¸ì…” ìœ„ì¹˜ ë˜ëŠ” Rigidbody ì„¤ì •ì´ ëˆ„ë½ë˜ì—ˆìŠµë‹ˆë‹¤.", this);
+            conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
             isBusy = false;
             yield break;
         }
 
-        Rigidbody itemRigidbody = arrivedItem.GetComponent<Rigidbody>();
+        Rigidbody itemRigidbody = arrivedItem.GetComponent<Rigidbody>()
+                               ?? arrivedItem.GetComponentInParent<Rigidbody>()
+                               ?? arrivedItem.GetComponentInChildren<Rigidbody>();
 
-        // Reject ¶óÀÎÀ¸·Î ³Ñ±æ ¶§´Â ¾ÆÀÌÅÛ ÀÌµ¿ ½ºÅ©¸³Æ®µµ ÇÊ¿äÇÕ´Ï´Ù.
-        if (mover == null ||
-            itemRigidbody == null ||
-            !HasSolidCollider(arrivedItem))
+        if (mover == null || itemRigidbody == null || !HasSolidCollider(arrivedItem))
         {
-            Debug.LogError(
-                "PusherController: ºÒ·®Ç°¿¡ ConveyorItemMover, Rigidbody, Is Trigger°¡ ²¨Áø Collider°¡ ÇÊ¿äÇÕ´Ï´Ù.",
-                arrivedItem);
-
-            conveyorManager.ReleaseItemAndRunLine(
-                sourceLineId,
-                mover);
-
+            Debug.LogError("PusherController: ë°°ì¶œ ëŒ€ìƒì— ConveyorItemMover, Rigidbody, Solid Colliderê°€ í•„ìš”í•©ë‹ˆë‹¤.", arrivedItem);
+            conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
             isBusy = false;
             yield break;
         }
 
-        // Çª¼Å°¡ ¹Ì´Â µ¿¾È ÀÌµ¿ ½ºÅ©¸³Æ®°¡ À§Ä¡¸¦ µ¤¾î¾²Áö ¾Êµµ·Ï ²ü´Ï´Ù.
+        // 3. ë¬¼ë¦¬ ë°€ì–´ë‚´ê¸° ì¤€ë¹„: ì´ì†¡ ìŠ¤í¬ë¦½íŠ¸ ì¼ì‹œ ì¤‘ì§€ ë° ë¬¼ë¦¬/ì¤‘ë ¥ í™œì„±í™”
         mover.enabled = false;
 
-        // ÇöÀç Transform À§Ä¡¸¦ ¹°¸® Rigidbody¿¡ ¹İ¿µÇÕ´Ï´Ù.
         itemRigidbody.position = arrivedItem.transform.position;
         itemRigidbody.rotation = arrivedItem.transform.rotation;
         Physics.SyncTransforms();
 
-        // ºÎÇ°Àº Áß·ÂÀ» À¯ÁöÇÏ´Â µ¿Àû Rigidbody·Î µÓ´Ï´Ù.
         itemRigidbody.isKinematic = false;
         itemRigidbody.useGravity = true;
-        itemRigidbody.collisionDetectionMode =
-            CollisionDetectionMode.ContinuousDynamic;
+        itemRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         itemRigidbody.WakeUp();
 
-        // Çª¼Å Çìµå°¡ ºÎÇ°À» ¹°¸®ÀûÀ¸·Î Reject ÄÁº£ÀÌ¾î ÂÊÀ¸·Î ¹Ó´Ï´Ù.
+        // 4. í‘¸ì…” í—¤ë“œ ì „ì§„ (ë¬¼í’ˆ ë°€ì–´ë‚´ê¸°)
         yield return MovePusherTo(extendedPoint);
 
         if (holdTime > 0f)
             yield return new WaitForSeconds(holdTime);
 
-        // ºÎÇ°¿¡¼­ Çª¼Å Çìµå¸¦ ¶¼¾î³À´Ï´Ù.
+        // 5. í‘¸ì…” í—¤ë“œ ì›ìœ„ì¹˜ ë³µê·€
         yield return MovePusherTo(retractedPoint);
 
-        // Çª¼Å°¡ ¹Î µÚÀÇ ¼öÆò °ü¼ºÀ» Á¤¸®ÇÏ°í ¼öÁ÷ Áß·Â ¼Óµµ´Â À¯ÁöÇÕ´Ï´Ù.
+        // ì”ì—¬ ìˆ˜í‰ ì†ë„ ê°ì‡„
         Vector3 itemVelocity = itemRigidbody.linearVelocity;
-        itemRigidbody.linearVelocity =
-            new Vector3(0f, itemVelocity.y, 0f);
+        itemRigidbody.linearVelocity = new Vector3(0f, itemVelocity.y, 0f);
         itemRigidbody.angularVelocity = Vector3.zero;
 
-        // ÀÌÁ¦ ºÎÇ°ÀÌ Reject ¶óÀÎ ¼Ò¼ÓÀ¸·Î ÀÌµ¿ÇÏµµ·Ï °æ·Î¸¦ ¹Ù²ß´Ï´Ù.
-        Vector3 destinationDirection =
-            destinationDirectionPoint != null
+        // 6. ë°°ì¶œ ëª¨ë“œ ë¶„ê¸° (ì»¨ë² ì´ì–´ ì´ê´€ vs ìƒì ë‹¨ìˆœ ë‚™í•˜)
+        Transform[] destinationWaypoints = conveyorManager.GetLineWaypoints(destinationLineId);
+        bool hasDestinationConveyor = (destinationLineId != sourceLineId) &&
+                                      (destinationWaypoints != null && destinationWaypoints.Length > 0);
+
+        if (hasDestinationConveyor)
+        {
+            // [ëª¨ë“œ A: ì»¨ë² ì´ì–´ í™˜ìŠ¹ (Line A)]
+            Vector3 destinationDirection = destinationDirectionPoint != null
                 ? destinationDirectionPoint.forward
                 : transform.forward;
 
-        item.state = ItemState.Idle;
+            if (item != null) item.state = ItemState.Idle;
 
-        mover.TransferToConveyor(
-            conveyorManager,
-            destinationLineId,
-            destinationDirection,
-            Vector3.zero,
-            destinationStartWaypointIndex);
+            mover.TransferToConveyor(
+                conveyorManager,
+                destinationLineId,
+                destinationDirection,
+                Vector3.zero,
+                destinationStartWaypointIndex);
 
-        // ºÒ·®Ç°ÀÌ Reject ÄÁº£ÀÌ¾î·Î ÀÌµ¿À» ½ÃÀÛÇÒ ¶§ ´ë½Ãº¸µå Ä«¿îÅÍ¸¦ °»½ÅÇÕ´Ï´Ù.
-        ProcessCounters.Add(CounterType.Defective);
+            ProcessCounters.Add(CounterType.Defective);
+            mover.enabled = true;
+            conveyorManager.RunLine(destinationLineId);
+            conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
+        }
+        else
+        {
+            // [ëª¨ë“œ B: ë‹¨ìˆœ ë°€ì–´ë‚´ê¸° / ìƒì ììœ  ë‚™í•˜ (Line C)]
+            // mover.enabled = false ìƒíƒœ ìœ ì§€ (ìƒì ì•ˆìœ¼ë¡œ ë¬¼ë¦¬ ì¤‘ë ¥ ë‚™í•˜)
+            if (item != null) item.state = ItemState.Idle;
 
-        // °æ·Î ¼³Á¤ ÈÄ ÀÌµ¿ ½ºÅ©¸³Æ®¸¦ ÄÑ°í Reject ¶óÀÎÀ» ½ÃÀÛÇÕ´Ï´Ù.
-        mover.enabled = true;
-        conveyorManager.RunLine(destinationLineId);
-
-        // ¿ø·¡ ¶óÀÎµµ ´Ù½Ã ½ÃÀÛÇÕ´Ï´Ù.
-        conveyorManager.ReleaseItemAndRunLine(
-            sourceLineId,
-            mover);
+            // ì†ŒìŠ¤ ë¼ì¸ì€ ë‹¤ìŒ ì‘ì—…ì„ ìœ„í•´ ì¬ê°€ë™ (ì™„ì œí’ˆì€ ìƒìë¡œ ë¶„ë¦¬ë˜ì—ˆìœ¼ë¯€ë¡œ null ì „ë‹¬)
+            conveyorManager.ReleaseItemAndRunLine(sourceLineId, null);
+        }
 
         ItemPushed?.Invoke(arrivedItem);
-
         isBusy = false;
     }
 
-    // Kinematic RigidbodyÀÎ Çª¼Å Çìµå¸¦ ¹°¸® ¾÷µ¥ÀÌÆ® ÁÖ±â¿¡ ¸ÂÃç ÀÌµ¿ÇÕ´Ï´Ù.
+    /// <summary>
+    /// Item, BaseInfo, PartInfoì˜ ê²°í•¨ ì •ë³´ë¥¼ í¬ê´„ í™•ì¸í•˜ëŠ” ì¢…í•© ë¶ˆëŸ‰ íŒì • ë©”ì„œë“œ
+    /// </summary>
+    private bool IsDefectiveItem(GameObject target)
+    {
+        if (target == null) return false;
+
+        // 1. Item ì»´í¬ë„ŒíŠ¸ ê¸°ì¤€
+        Item item = target.GetComponent<Item>() 
+                 ?? target.GetComponentInParent<Item>() 
+                 ?? target.GetComponentInChildren<Item>();
+        if (item != null && item.itemType == ItemType.Defective)
+            return true;
+
+        // 2. BaseInfo ì»´í¬ë„ŒíŠ¸ ê¸°ì¤€ (ì°¨ì²´ ë² ì´ìŠ¤ ë¶ˆëŸ‰)
+        BaseInfo baseInfo = target.GetComponent<BaseInfo>() 
+                         ?? target.GetComponentInParent<BaseInfo>() 
+                         ?? target.GetComponentInChildren<BaseInfo>();
+        if (baseInfo != null && baseInfo.defectType != DefectType.None)
+            return true;
+
+        // 3. PartInfo ì»´í¬ë„ŒíŠ¸ ê¸°ì¤€ (í´ë¡œ ë¶€í’ˆ ë¶ˆëŸ‰)
+        PartInfo partInfo = target.GetComponent<PartInfo>() 
+                         ?? target.GetComponentInParent<PartInfo>() 
+                         ?? target.GetComponentInChildren<PartInfo>();
+        if (partInfo != null && partInfo.defectType != DefectType.None)
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Kinematic Rigidbodyë¥¼ ëª©í‘œ ìœ„ì¹˜ë¡œ ë¬¼ë¦¬ ì´ë™
+    /// </summary>
     private IEnumerator MovePusherTo(Transform target)
     {
         if (target == null || pusherRigidbody == null)
@@ -301,9 +276,7 @@ public class PusherController : MonoBehaviour
 
         float moveSpeed = Mathf.Max(0.01f, pusherSpeed);
 
-        while (Vector3.Distance(
-                   pusherRigidbody.position,
-                   target.position) > 0.001f)
+        while (Vector3.Distance(pusherRigidbody.position, target.position) > 0.001f)
         {
             yield return new WaitForFixedUpdate();
 
@@ -327,17 +300,16 @@ public class PusherController : MonoBehaviour
         pusherRigidbody.MoveRotation(target.rotation);
     }
 
-    // ¿ÀºêÁ§Æ® ÀÚ½ÅÀÌ³ª ÀÚ½Ä ¿ÀºêÁ§Æ®¿¡ ½ÇÁ¦ Ãæµ¹¿ë Collider°¡ ÀÖ´ÂÁö È®ÀÎÇÕ´Ï´Ù.
+    /// <summary>
+    /// íŠ¸ë¦¬ê±°ê°€ ì•„ë‹Œ ìœ íš¨í•œ ì¶©ëŒì²´(Solid Collider)ê°€ ìˆëŠ”ì§€ í™•ì¸
+    /// </summary>
     private bool HasSolidCollider(GameObject target)
     {
-        Collider[] colliders =
-            target.GetComponentsInChildren<Collider>(true);
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
 
         foreach (Collider targetCollider in colliders)
         {
-            if (targetCollider != null &&
-                targetCollider.enabled &&
-                !targetCollider.isTrigger)
+            if (targetCollider != null && targetCollider.enabled && !targetCollider.isTrigger)
             {
                 return true;
             }
