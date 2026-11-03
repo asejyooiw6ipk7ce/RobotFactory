@@ -1,78 +1,212 @@
 using System.Collections;
 using UnityEngine;
 
-//InspectStation¿¡¼­ StartCoroutine(conveyor.Stop());
-
+/// <summary>
+/// ì»¨ë² ì´ì–´ ë²¨íŠ¸ ìƒì˜ ë¶€í’ˆì„ ë¬¼ë¦¬ì ìœ¼ë¡œ ê°€ë¡œë§‰ê±°ë‚˜ í†µê³¼ì‹œí‚¤ëŠ” ìŠ¤í† í¼ ë°” ì œì–´ ì»´í¬ë„ŒíŠ¸.
+/// ì‹œì‘ ì‹œ ë²¨íŠ¸ ì•„ë˜(Down)ë¡œ ë‚´ë ¤ê°€ ìˆë‹¤ê°€, ë¶€í’ˆ ë„ì°© ì‹œ ì˜¬ë¼ì™€ì„œ(Up) ë§‰ê³ , ì¶œë°œ ì‹œ ë‹¤ì‹œ ë‚´ë ¤ê°‘ë‹ˆë‹¤.
+/// </summary>
 public class PartStopper : MonoBehaviour
 {
-    [Header("½ºÅäÆÛ")]
+    public enum PositionMode
+    {
+        Relative, // ì‚¬ìš©ìê°€ ì”¬ì— ë°°ì¹˜í•œ ì´ˆê¸° ìœ„ì¹˜(ë²¨íŠ¸ ë°‘)ë¥¼ ê¸°ì¤€ìœ¼ë¡œ ìƒëŒ€ ë†’ì´ë§Œí¼ ì˜¬ë¦¼ (ê¶Œì¥)
+        Absolute  // ì§ì ‘ ì…ë ¥í•œ World/Local Y ì¢Œí‘œë¡œ ì´ë™
+    }
+
+    [Header("ìŠ¤í† í¼ ëŒ€ìƒ Transform")]
+    [Tooltip("ì‹¤ì œë¡œ ìœ„ì•„ë˜ë¡œ ì›€ì§ì¼ ìŠ¤í† í¼ ë°” ì˜¤ë¸Œì íŠ¸ (ë¹„ì–´ìˆìœ¼ë©´ í˜„ì¬ ì˜¤ë¸Œì íŠ¸)")]
     public Transform stopper;
-    public float stopperUpY = 1.01607f; //¿Ã·ÈÀ» ¶§ ³ôÀÌ(Y). ºÎÇ°À» ¸·´Â À§Ä¡
-    public float stopperDownY = 0.704f;  //³»·ÈÀ» ¶§ ³ôÀÌ. ºÎÇ°ÀÌ À§·Î Áö³ª°¥ ¼ö ÀÖ´Â À§Ä¡
-    public float stopperMoveTime = 0.3f; //¿Ã¸®°í ³»¸®´Â µ¥ °É¸®´Â ½Ã°£
 
-    [Header("¿òÁ÷ÀÌ´Â ÁßÀÎÁö")]
-    private bool stopperMoving;
+    [Header("ì´ë™ ë°©ì‹ ì„¤ì •")]
+    [Tooltip("Relative: ì”¬ì˜ í˜„ì¬ ìœ„ì¹˜ë¥¼ ë‚´ë ¤ê°„ ìœ„ì¹˜ë¡œ ìë™ ì¸ì‹í•˜ê³  liftHeightë§Œí¼ ì˜¬ë¼ê° (ê°€ì¥ í¸ë¦¬)\nAbsolute: ì•„ë˜ upY, downY ì¢Œí‘œë¡œ ì§ì ‘ ì´ë™")]
+    public PositionMode positionMode = PositionMode.Relative;
 
-    public bool StopperUp { get; private set; } = false;  //½ºÅäÆÛ°¡ Áö±İ ¿Ã¶ó°¡ ÀÖ´ÂÁö (true:¿Ã¶ó°¡ÀÖÀ½ , false:³»·Á°¡ ÀÖÀ½)
+    [Tooltip("ë¶€ëª¨ ê¸°ì¤€ ë¡œì»¬ ì¢Œí‘œê³„ ì‚¬ìš© ì—¬ë¶€ (ê¶Œì¥)")]
+    public bool useLocalPosition = true;
+
+    [Header("ìƒëŒ€ ì´ë™ ì„¤ì • (Relative ëª¨ë“œ)")]
+    [Tooltip("ìŠ¤í† í¼ê°€ ìœ„ë¡œ ì†Ÿì•„ì˜¤ë¥¼ ë†’ì´ (m) - ê¸°ë³¸ ìœ„ì¹˜ì—ì„œ ì´ë§Œí¼ ìœ„ë¡œ ì˜¬ë¼ì˜µë‹ˆë‹¤.")]
+    public float liftHeight = 0.25f;
+
+    [Header("ì ˆëŒ€ ì´ë™ ì¢Œí‘œ (Absolute ëª¨ë“œ)")]
+    [Tooltip("ìŠ¤í† í¼ê°€ ì˜¬ë¼ì™”ì„ ë•Œì˜ Y ì¢Œí‘œ (ë¶€í’ˆ ê°€ë¡œë§‰ìŒ)")]
+    public float stopperUpY = 0.95f;
+
+    [Tooltip("ìŠ¤í† í¼ê°€ ë‚´ë ¤ê°”ì„ ë•Œì˜ Y ì¢Œí‘œ (ë²¨íŠ¸ ë°‘ ìˆ¨ê¹€, í†µê³¼ í—ˆìš©)")]
+    public float stopperDownY = 0.65f;
+
+    [Header("ë™ì‘ ì†ë„ ë° ì´ˆê¸° ìƒíƒœ")]
+    [Tooltip("ì˜¬ë¼ê°€ê³  ë‚´ë ¤ê°€ëŠ” ë° ê±¸ë¦¬ëŠ” ì‹œê°„ (ì´ˆ)")]
+    public float stopperMoveTime = 0.25f;
+
+    [Tooltip("ê²Œì„ ì‹œì‘ ì‹œ ìŠ¤í† í¼ë¥¼ ë‚´ë ¤ê°„ ìƒíƒœ(ë²¨íŠ¸ ë°‘)ë¡œ ì‹œì‘í• ì§€ ì—¬ë¶€")]
+    public bool startDown = true;
+
+    [Header("ì‹¤ì‹œê°„ ìƒíƒœ")]
+    [SerializeField] private bool stopperMoving;
+    [SerializeField] private bool isStopperUp = false;
+
+    // ì‹¤ì œ ì´ë™ ê³„ì‚°ìš© ìºì‹œ ì¢Œí‘œ
+    private float cachedDownY;
+    private float cachedUpY;
+    private bool isInitialized = false;
+
+    public bool StopperUp => isStopperUp;
+    public bool IsMoving => stopperMoving;
+
+    private void Awake()
+    {
+        if (stopper == null)
+            stopper = transform;
+
+        InitializePositions();
+    }
 
     private void Start()
     {
+        if (startDown)
+        {
+            // ì‹œì‘ ì‹œ ë²¨íŠ¸ ë°‘(ë‚´ë ¤ê°„ ìƒíƒœ)ìœ¼ë¡œ ì¦‰ì‹œ ë°°ì¹˜
+            SetYPosition(cachedDownY);
+            isStopperUp = false;
+        }
+        else
+        {
+            SetYPosition(cachedUpY);
+            isStopperUp = true;
+        }
+    }
+
+    /// <summary>
+    /// ëª¨ë“œì— ë”°ë¥¸ Up/Down Y ì¢Œí‘œë¥¼ ì´ˆê¸°í™”í•©ë‹ˆë‹¤.
+    /// </summary>
+    public void InitializePositions()
+    {
+        if (stopper == null)
+            stopper = transform;
+
+        float currentY = useLocalPosition ? stopper.localPosition.y : stopper.position.y;
+
+        if (positionMode == PositionMode.Relative)
+        {
+            // ì‚¬ìš©ìê°€ ì”¬ì—ì„œ ë²¨íŠ¸ ë°‘ì— ë‘” í˜„ì¬ ìœ„ì¹˜ë¥¼ ë‚´ë ¤ê°„ ìœ„ì¹˜(Down)ë¡œ ê¸°ì–µ!
+            cachedDownY = currentY;
+            cachedUpY = currentY + Mathf.Abs(liftHeight);
+        }
+        else
+        {
+            cachedDownY = stopperDownY;
+            cachedUpY = stopperUpY;
+        }
+
+        isInitialized = true;
+    }
+
+    private float GetCurrentY()
+    {
+        if (stopper == null) return 0f;
+        return useLocalPosition ? stopper.localPosition.y : stopper.position.y;
+    }
+
+    private void SetYPosition(float y)
+    {
         if (stopper == null) return;
 
-        //StopperUp = false·Î ½ÃÀÛ = ½ºÅäÆÛ ³»¸° Ã¤ ½ÃÀÛ
-        stopper.position = new Vector3(stopper.position.x, stopperDownY, stopper.position.z);
+        if (useLocalPosition)
+        {
+            Vector3 pos = stopper.localPosition;
+            stopper.localPosition = new Vector3(pos.x, y, pos.z);
+        }
+        else
+        {
+            Vector3 pos = stopper.position;
+            stopper.position = new Vector3(pos.x, y, pos.z);
+        }
     }
-    
-    //½ºÅäÆÛ¸¦ ºÎµå·´°Ô ¿Ã¸®°Å³ª ³»¸®´Â ÄÚ·çÆ¾ (µ¿ÀÛ)
-    private IEnumerator MoveStopper(bool up)  
-    {
-        // Âü°í : Factory/Cell/ConveyorLine.cs
-        if (stopper == null) yield break;
 
-        //1. ¿òÁ÷ÀÌ´Â ÁßÀÓÀ» Ç¥½Ã
+    /// <summary>
+    /// ìŠ¤í† í¼ë¥¼ ë¶€ë“œëŸ½ê²Œ ì˜¬ë¦¬ê±°ë‚˜ ë‚´ë¦¬ëŠ” ì½”ë£¨í‹´
+    /// </summary>
+    private IEnumerator MoveStopper(bool up)
+    {
+        if (stopper == null) yield break;
+        if (!isInitialized) InitializePositions();
+
         stopperMoving = true;
 
-        //Ãâ¹ß ³ôÀÌ¿¡¼­ ¸ñÇ¥ ³ôÀÌ±îÁö
-        float from = stopper.position.y;
-        float to = up ? stopperUpY : stopperDownY;
+        float from = GetCurrentY();
+        float to = up ? cachedUpY : cachedDownY;
 
-        //moveTimeµ¿¾È Á¶±İ¾¿ º¸°£
         float elapsed = 0f;
         while (elapsed < stopperMoveTime)
         {
             elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / stopperMoveTime);
+            // ë¶€ë“œëŸ¬ìš´ ê°ì† íš¨ê³¼ ì ìš© (SmoothStep)
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            float newY = Mathf.Lerp(from, to, smoothT);
 
-            float newY = Mathf.Lerp(from, to, Mathf.Clamp01(elapsed / stopperMoveTime));
-            stopper.position = new Vector3(stopper.position.x,newY, stopper.position.z);
+            SetYPosition(newY);
             yield return null;
         }
 
-        //ÇÑ¹ø ´õ ¸ñÇ¥ ³ôÀÌ·Î Á¤È®È÷ ¸ÂÃã
-        stopper.position = new Vector3(stopper.position.x, to, stopper.position.z);
-
-        //»óÅÂ¸¦ °»½Å
-        StopperUp = up;
+        SetYPosition(to);
+        isStopperUp = up;
         stopperMoving = false;
     }
 
-    // ºÎÇ°ÀÌ ¸ØÃâ ¶§ ¹«¾ùÀ» ÇØ¾ßÇÏ³ª - ÀÌ¹Ì ¿Ã¶ó°¡ ÀÖÀ½ ¹«½Ã, ¾Æ´Ï¸é ¿Ã¸²
-    public IEnumerator Stop()  //ÀÌ¹Ì ¿Ã¶ó°¡ ÀÖÀ½ ÇÒ ÀÏÀÌ ¾øÀ½
+    /// <summary>
+    /// [ì˜¬ë¦¬ê¸°] ìŠ¤í† í¼ë¥¼ ìœ„ë¡œ ì˜¬ë ¤ ë¶€í’ˆì„ ê°€ë¡œë§‰ìŠµë‹ˆë‹¤. (ë¶€í’ˆ ì •ì§€ ì‹œ í˜¸ì¶œ)
+    /// </summary>
+    public IEnumerator Stop()
     {
-        //³»·Á°¡´Â Áß¿¡ Stop()ÀÌ ¹«½ÃµÇ´Â ¹®Á¦ ¹æÁö
-        while (stopperMoving) yield return null;  
+        while (stopperMoving) yield return null;
+        if (isStopperUp) yield break; // ì´ë¯¸ ì˜¬ë¼ì™€ ìˆìœ¼ë©´ ì¤‘ë³µ ì‹¤í–‰ ì•ˆ í•¨
 
-        //ÀÌ¹Ì ¿Ã¶ó°¡ ÀÖÀ¸¸é yield break
-        if (stopperMoving || StopperUp) yield break;
-
-        //±× ¿Ü´Â yield return MoveStopper(true);
         yield return MoveStopper(true);
     }
 
-    // ºÎÇ°À» º¸³¾ ¶§ ¹«¾ùÀ» ÇØ¾ßÇÏ³ª - ÀÌ¹Ì ³»·Á°¡ ÀÖÀ¸¸é ¹«½Ã, ¾Æ´Ï¸é ³»¸²
+    /// <summary>
+    /// [ë‚´ë¦¬ê¸°] ìŠ¤í† í¼ë¥¼ ë²¨íŠ¸ ë°‘ìœ¼ë¡œ ë‚´ë ¤ ë¶€í’ˆì„ í†µê³¼ì‹œí‚µë‹ˆë‹¤. (ë¶€í’ˆ ì¶œë°œ ì‹œ í˜¸ì¶œ)
+    /// </summary>
     public IEnumerator Resume()
     {
-        if (stopperMoving || !StopperUp) yield break;
+        while (stopperMoving) yield return null;
+        if (!isStopperUp) yield break; // ì´ë¯¸ ë‚´ë ¤ê°€ ìˆìœ¼ë©´ ì¤‘ë³µ ì‹¤í–‰ ì•ˆ í•¨
+
         yield return MoveStopper(false);
+    }
+
+    /// <summary>
+    /// ì™¸ë¶€ì—ì„œ ì¦‰ì‹œ ìƒíƒœë¥¼ ì„¤ì •í•  ë•Œ ì‚¬ìš©í•©ë‹ˆë‹¤. (ì• ë‹ˆë©”ì´ì…˜ ì—†ì´ ìˆœê°„ì´ë™)
+    /// </summary>
+    public void SetImmediateState(bool up)
+    {
+        if (!isInitialized) InitializePositions();
+        StopAllCoroutines();
+        stopperMoving = false;
+        isStopperUp = up;
+        SetYPosition(up ? cachedUpY : cachedDownY);
+    }
+
+    // ==========================================
+    // ì—ë””í„° í¸ì˜ìš© ê¸°ëŠ¥
+    // </summary>
+    public void CaptureCurrentAsDown()
+    {
+        if (stopper == null) stopper = transform;
+        float currentY = GetCurrentY();
+        stopperDownY = currentY;
+        cachedDownY = currentY;
+        Debug.Log($"[PartStopper] í˜„ì¬ Y({currentY:F3})ë¥¼ 'ë‚´ë ¤ê°„ ìœ„ì¹˜(Down)'ë¡œ ì €ì¥í–ˆìŠµë‹ˆë‹¤.");
+    }
+
+    public void CaptureCurrentAsUp()
+    {
+        if (stopper == null) stopper = transform;
+        float currentY = GetCurrentY();
+        stopperUpY = currentY;
+        cachedUpY = currentY;
+        Debug.Log($"[PartStopper] í˜„ì¬ Y({currentY:F3})ë¥¼ 'ì˜¬ë¼ê°„ ìœ„ì¹˜(Up)'ë¡œ ì €ì¥í–ˆìŠµë‹ˆë‹¤.");
     }
 }
