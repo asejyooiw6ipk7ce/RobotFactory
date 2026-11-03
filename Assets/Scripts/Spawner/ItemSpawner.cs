@@ -158,12 +158,15 @@ public class ItemSpawner : MonoBehaviour
 
         if (item != null)
         {
-            ItemType randomType = Random.Range(0, 2) == 0
-                ? ItemType.Normal
-                : ItemType.Defective;
-
+            ItemType randomType = Random.Range(0, 2) == 0 ? ItemType.Normal : ItemType.Defective;
             item.itemType = randomType;
             item.shouldBeGrabbed = randomType == ItemType.Normal;
+
+            var partLoss = newItem.GetComponent<PartLoss>();
+            if (partLoss != null)
+            {
+                partLoss.ApplyDefect(randomType == ItemType.Defective ? DefectType.PartLoss : DefectType.None);
+            }
         }
 
         return true;
