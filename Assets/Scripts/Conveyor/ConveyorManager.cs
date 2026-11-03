@@ -122,6 +122,12 @@ public class ConveyorManager : MonoBehaviour
         return line != null ? line.waypoints : null;
     }
 
+    public int[] GetStopWaypointIndices(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+        return line != null ? line.stopWaypointIndices : null;
+    }
+
     public bool IsStopWaypoint(ConveyorLineId lineId, int waypointIndex)
     {
         ConveyorLine line = FindLine(lineId);

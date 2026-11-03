@@ -105,9 +105,17 @@ public class InspectStation : MonoBehaviour
         if (ik != null && inspectPose != null)
         {
             Vector3 safeInspectPos = inspectPose.position + Vector3.up * inspectHeightOffset;
-            ik.pointDown = true;
-            ik.useTargetLookDir = false;
-            yield return ik.MoveTo(safeInspectPos, null);
+            float dist = (safeInspectPos - ik.transform.position).magnitude;
+            if (dist < 1.5f)
+            {
+                ik.pointDown = true;
+                ik.useTargetLookDir = false;
+                yield return ik.MoveTo(safeInspectPos, null);
+            }
+            else
+            {
+                Debug.LogWarning($"[InspectStation] inspectPose({inspectPose.position})가 로봇 작업반경(거리: {dist:F1}m)을 벗어나 제자리 비전 검사를 진행합니다.", this);
+            }
         }
 
         // 4. 검사 진행

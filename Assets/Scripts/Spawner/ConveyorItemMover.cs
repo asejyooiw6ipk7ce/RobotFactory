@@ -1,39 +1,42 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class ConveyorItemMover : MonoBehaviour
 {
-    [Header("°æ·Î ÀÌµ¿ ¼³Á¤")]
+    [Header("ê²½ë¡œ ì´ë™ ì„¤ì •")]
 
-    // ¾ÆÀÌÅÛÀÌ ¿şÀÌÆ÷ÀÎÆ®¿¡ µµÂøÇß´Ù°í ÆÇ´ÜÇÒ ¼öÆò °Å¸®ÀÔ´Ï´Ù.
-    [SerializeField] private float waypointReachDistance = 0.03f;
+    // ì •ì§€ì ì— ë„ì°©í–ˆë‹¤ê³  íŒë‹¨í•  ìˆ˜í‰ ê±°ë¦¬ì…ë‹ˆë‹¤.
+    [SerializeField] private float waypointReachDistance = 0.05f;
 
-    // ÀÌµ¿ °æ·Î¸¦ µû¶ó ¾ÆÀÌÅÛÀÇ ¹æÇâµµ µ¹¸±Áö ¼³Á¤ÇÕ´Ï´Ù.
+    // ì¼ë°˜ ê²½ìœ  ì›¨ì´í¬ì¸íŠ¸ë¥¼ ë¶€ë“œëŸ½ê²Œ í†µê³¼í•  ìˆ˜í‰ ê±°ë¦¬ì…ë‹ˆë‹¤ (ì˜¤ë²„ìŠˆíŠ¸ ë° ì§„ë™ ë°©ì§€).
+    [SerializeField] private float passWaypointDistance = 0.25f;
+
+    // ì´ë™ ê²½ë¡œë¥¼ ë”°ë¼ ì•„ì´í…œì˜ Yì¶• ë°©í–¥(Yaw)ë„ ëŒë¦´ì§€ ì„¤ì •í•©ë‹ˆë‹¤.
     [SerializeField] private bool rotateAlongPath = true;
 
-    // ÀÌµ¿ ¹æÇâÀ¸·Î È¸ÀüÇÏ´Â ¼ÓµµÀÔ´Ï´Ù.
+    // ì´ë™ ë°©í–¥ìœ¼ë¡œ íšŒì „í•˜ëŠ” ì†ë„ì…ë‹ˆë‹¤.
     [SerializeField] private float rotationSpeed = 8f;
 
-    // Áß¾Ó ÄÁº£ÀÌ¾î ¸Å´ÏÀú¿Í ¶óÀÎ Á¤º¸ÀÔ´Ï´Ù.
+    // ì¤‘ì•™ ì»¨ë² ì´ì–´ ë§¤ë‹ˆì €ì™€ ë¼ì¸ ì •ë³´ì…ë‹ˆë‹¤.
     private ConveyorManager conveyorManager;
     private ConveyorLineId lineId;
 
-    // ¿şÀÌÆ÷ÀÎÆ®°¡ ¾øÀ» ¶§ »ç¿ëÇÒ Á÷¼± ÀÌµ¿ ¹æÇâÀÔ´Ï´Ù.
+    // ì›¨ì´í¬ì¸íŠ¸ê°€ ì—†ì„ ë•Œ ì‚¬ìš©í•  ì§ì„  ì´ë™ ë°©í–¥ì…ë‹ˆë‹¤.
     private Vector3 moveDirection;
 
-    // ¾ÆÀÌÅÛ ¸ğµ¨¿¡ Àû¿ëÇÒ È¸Àü ¿ÀÇÁ¼ÂÀÔ´Ï´Ù.
+    // ì•„ì´í…œ ëª¨ë¸ì— ì ìš©í•  íšŒì „ ì˜¤í”„ì…‹ì…ë‹ˆë‹¤.
     private Vector3 rotationOffset;
 
-    // ÇöÀç ÀÌµ¿ÇÒ ¿şÀÌÆ÷ÀÎÆ® ÀÎµ¦½ºÀÔ´Ï´Ù.
+    // í˜„ì¬ ì´ë™í•  ì›¨ì´í¬ì¸íŠ¸ ì¸ë±ìŠ¤ì…ë‹ˆë‹¤.
     private int waypointIndex;
 
-    // Á¤ÁöÁ¡¿¡¼­ ÀÛ¾÷ ¿Ï·á¸¦ ±â´Ù¸®´Â »óÅÂÀÔ´Ï´Ù.
+    // ì •ì§€ì ì—ì„œ ì‘ì—… ì™„ë£Œë¥¼ ê¸°ë‹¤ë¦¬ëŠ” ìƒíƒœì…ë‹ˆë‹¤.
     private bool isWaitingAtStopPoint;
 
-    // ¾ÆÀÌÅÛ »óÅÂ¿Í ¹°¸® ÀÌµ¿À» Á¦¾îÇÏ´Â ÄÄÆ÷³ÍÆ®ÀÔ´Ï´Ù.
+    // ì•„ì´í…œ ìƒíƒœì™€ ë¬¼ë¦¬ ì´ë™ì„ ì œì–´í•˜ëŠ” ì»´í¬ë„ŒíŠ¸ì…ë‹ˆë‹¤.
     private Item item;
     private Rigidbody itemRigidbody;
 
-    // ¸Å´ÏÀú ¶Ç´Â Rigidbody ´©¶ô °æ°í¸¦ ÇÑ ¹ø¸¸ Ãâ·ÂÇÕ´Ï´Ù.
+    // ë§¤ë‹ˆì € ë˜ëŠ” Rigidbody ëˆ„ë½ ê²½ê³ ë¥¼ í•œ ë²ˆë§Œ ì¶œë ¥í•©ë‹ˆë‹¤.
     private bool hasWarnedMissingManager;
     private bool hasWarnedMissingRigidbody;
 
@@ -46,7 +49,7 @@ public class ConveyorItemMover : MonoBehaviour
         itemRigidbody = GetComponent<Rigidbody>();
     }
 
-    // ½ºÆ÷³Ê°¡ ¾ÆÀÌÅÛ »ı¼º Á÷ÈÄ ¸Å´ÏÀú, ¶óÀÎ, ¹æÇâÀ» Àü´ŞÇÕ´Ï´Ù.
+    // ìŠ¤í¬ë„ˆê°€ ì•„ì´í…œ ìƒì„± ì§í›„ ë§¤ë‹ˆì €, ë¼ì¸, ë°©í–¥ì„ ì „ë‹¬í•©ë‹ˆë‹¤.
     public void Initialize(
         ConveyorManager manager,
         ConveyorLineId targetLineId,
@@ -76,12 +79,12 @@ public class ConveyorItemMover : MonoBehaviour
         if (itemRigidbody == null)
         {
             Debug.LogError(
-                "ConveyorItemMover: ¹°¸® ÀÌµ¿À» À§ÇØ ¾ÆÀÌÅÛ ·çÆ®¿¡ Rigidbody°¡ ÇÊ¿äÇÕ´Ï´Ù.",
+                "ConveyorItemMover: ë¬¼ë¦¬ ì´ë™ì„ ìœ„í•´ ì•„ì´í…œ ë£¨íŠ¸ì— Rigidbodyê°€ í•„ìš”í•©ë‹ˆë‹¤.",
                 this);
         }
     }
 
-    // µ¿Àû RigidbodyÀÇ ¼Óµµ´Â ¹°¸® ÇÁ·¹ÀÓ¿¡¼­ °»½ÅÇÕ´Ï´Ù.
+    // ë™ì  Rigidbodyì˜ ì†ë„ëŠ” ë¬¼ë¦¬ í”„ë ˆì„ì—ì„œ ê°±ì‹ í•©ë‹ˆë‹¤.
     private void FixedUpdate()
     {
         if (conveyorManager == null)
@@ -91,7 +94,7 @@ public class ConveyorItemMover : MonoBehaviour
             if (!hasWarnedMissingManager)
             {
                 Debug.LogWarning(
-                    "ConveyorItemMover: ConveyorManager°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                    "ConveyorItemMover: ConveyorManagerê°€ ì—°ê²°ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.",
                     this);
 
                 hasWarnedMissingManager = true;
@@ -105,7 +108,7 @@ public class ConveyorItemMover : MonoBehaviour
             if (!hasWarnedMissingRigidbody)
             {
                 Debug.LogError(
-                    "ConveyorItemMover: Rigidbody°¡ ¾ø¾î ¾ÆÀÌÅÛÀ» ¿òÁ÷ÀÏ ¼ö ¾ø½À´Ï´Ù.",
+                    "ConveyorItemMover: Rigidbodyê°€ ì—†ì–´ ì•„ì´í…œì„ ì›€ì§ì¼ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.",
                     this);
 
                 hasWarnedMissingRigidbody = true;
@@ -114,7 +117,7 @@ public class ConveyorItemMover : MonoBehaviour
             return;
         }
 
-        // ÀÛ¾÷ ´ë±â ÁßÀÌ°Å³ª ·Îº¿ÀÌ ¾ÆÀÌÅÛÀ» ÀÎ°è¹ŞÀ¸¸é ¼öÆò ÀÌµ¿À» ¸ØÃä´Ï´Ù.
+        // ì‘ì—… ëŒ€ê¸° ì¤‘ì´ê±°ë‚˜ ë¡œë´‡ì´ ì•„ì´í…œì„ ì¸ê³„ë°›ìœ¼ë©´ ìˆ˜í‰ ì´ë™ì„ ë©ˆì¶¥ë‹ˆë‹¤.
         if (isWaitingAtStopPoint ||
             (item != null && item.state != ItemState.Idle))
         {
@@ -122,7 +125,7 @@ public class ConveyorItemMover : MonoBehaviour
             return;
         }
 
-        // ¸Å´ÏÀú°¡ ¶óÀÎÀ» ¸ØÃß¸é ¼öÆò ÀÌµ¿ ¼Óµµµµ 0À¸·Î ¸¸µì´Ï´Ù.
+        // ë§¤ë‹ˆì €ê°€ ë¼ì¸ì„ ë©ˆì¶”ë©´ ìˆ˜í‰ ì´ë™ ì†ë„ë„ 0ìœ¼ë¡œ ë§Œë“­ë‹ˆë‹¤.
         float speed = conveyorManager.GetLineSpeed(lineId);
 
         if (speed <= 0f)
@@ -144,7 +147,7 @@ public class ConveyorItemMover : MonoBehaviour
         }
     }
 
-    // ¿şÀÌÆ÷ÀÎÆ®°¡ ¾ø´Â °æ¿ì ÁöÁ¤ÇÑ ¹æÇâÀ¸·Î ÀÌµ¿ÇÕ´Ï´Ù.
+    // ì›¨ì´í¬ì¸íŠ¸ê°€ ì—†ëŠ” ê²½ìš° ì§€ì •í•œ ë°©í–¥ìœ¼ë¡œ ì´ë™í•©ë‹ˆë‹¤.
     private void MoveStraight(float speed)
     {
         Vector3 planarDirection =
@@ -162,12 +165,12 @@ public class ConveyorItemMover : MonoBehaviour
             RotateAlongDirection(planarDirection);
     }
 
-    // ¿şÀÌÆ÷ÀÎÆ®¸¦ ¼ø¼­´ë·Î µû¶ó°©´Ï´Ù.
+    // ì›¨ì´í¬ì¸íŠ¸ë¥¼ ìˆœì„œëŒ€ë¡œ ë”°ë¼ê°‘ë‹ˆë‹¤.
     private void MoveAlongWaypoints(
         Transform[] waypoints,
         float speed)
     {
-        // ÇöÀç ÁöÁ¡ÀÌ ºñ¾î ÀÖ°Å³ª ÀÌ¹Ì µµÂøÇßÀ¸¸é ´ÙÀ½ ÁöÁ¡À» È®ÀÎÇÕ´Ï´Ù.
+        // í˜„ì¬ ì§€ì ì´ ë¹„ì–´ ìˆê±°ë‚˜ ì´ë¯¸ ë„ì°©í–ˆìœ¼ë©´ ë‹¤ìŒ ì§€ì ì„ í™•ì¸í•©ë‹ˆë‹¤.
         while (waypointIndex < waypoints.Length)
         {
             Transform target = waypoints[waypointIndex];
@@ -178,14 +181,18 @@ public class ConveyorItemMover : MonoBehaviour
                 continue;
             }
 
-            // ÄÁº£ÀÌ¾î°¡ ¼öÆòÀÌ¶ó°í º¸°í YÃà Â÷ÀÌ´Â µµÂø °Å¸®¿¡¼­ Á¦¿ÜÇÕ´Ï´Ù.
+            // ì»¨ë² ì´ì–´ê°€ ìˆ˜í‰ì´ë¼ê³  ë³´ê³  Yì¶• ì°¨ì´ëŠ” ë„ì°© ê±°ë¦¬ì—ì„œ ì œì™¸í•©ë‹ˆë‹¤.
             Vector3 directionToTarget =
                 target.position - itemRigidbody.position;
 
             Vector3 planarDirection =
                 Vector3.ProjectOnPlane(directionToTarget, Vector3.up);
 
-            if (planarDirection.magnitude > waypointReachDistance)
+            // ì •ì§€ì ì€ ì •ë°€í•˜ê²Œ ê°ì†/ì •ì§€í•˜ê³ , ì¼ë°˜ ê²½ìœ ì ì€ ë¶€ë“œëŸ½ê²Œ í†µê³¼í•˜ì—¬ ì˜¤ë²„ìŠˆíŠ¸ ì§„ë™ì„ ë°©ì§€í•©ë‹ˆë‹¤.
+            bool isStopPoint = conveyorManager.IsStopWaypoint(lineId, waypointIndex);
+            float thresholdDistance = isStopPoint ? waypointReachDistance : passWaypointDistance;
+
+            if (planarDirection.magnitude > thresholdDistance)
             {
                 SetHorizontalVelocity(planarDirection.normalized * speed);
 
@@ -195,8 +202,8 @@ public class ConveyorItemMover : MonoBehaviour
                 return;
             }
 
-            // Á¤Áö ÁöÁ¡¿¡ µµÂøÇÏ¸é ¾ÆÀÌÅÛ°ú ¶óÀÎÀ» ¸ØÃß°í ÀÌº¥Æ®¸¦ º¸³À´Ï´Ù.
-            if (conveyorManager.IsStopWaypoint(lineId, waypointIndex))
+            // ì •ì§€ ì§€ì ì— ë„ì°©í•˜ë©´ ì•„ì´í…œê³¼ ë¼ì¸ì„ ë©ˆì¶”ê³  ì´ë²¤íŠ¸ë¥¼ ë³´ëƒ…ë‹ˆë‹¤.
+            if (isStopPoint)
             {
                 isWaitingAtStopPoint = true;
                 StopHorizontalMotion();
@@ -209,15 +216,15 @@ public class ConveyorItemMover : MonoBehaviour
                 return;
             }
 
-            // ÀÏ¹İ °æÀ¯Á¡ÀÌ¸é ´ÙÀ½ ¿şÀÌÆ÷ÀÎÆ®·Î ³Ñ¾î°©´Ï´Ù.
+            // ì¼ë°˜ ê²½ìœ ì ì´ë©´ ê°ì† ì—†ì´ ì¦‰ì‹œ ë‹¤ìŒ ì›¨ì´í¬ì¸íŠ¸ë¡œ ë„˜ì–´ê°‘ë‹ˆë‹¤.
             waypointIndex++;
         }
 
-        // ¹è¿­ ³¡±îÁö ¿ÔÀ¸¸é °æ·Î°¡ ³¡³­ °ÍÀÌ¹Ç·Î ÀÌµ¿À» ¸ØÃä´Ï´Ù.
+        // ë°°ì—´ ëê¹Œì§€ ì™”ìœ¼ë©´ ê²½ë¡œê°€ ëë‚œ ê²ƒì´ë¯€ë¡œ ì´ë™ì„ ë©ˆì¶¥ë‹ˆë‹¤.
         StopHorizontalMotion();
     }
 
-    // ¼öÆò ¼Óµµ¸¸ ¹Ù²Ù°í Áß·Â¿¡ ÀÇÇÑ YÃà ¼Óµµ´Â º¸Á¸ÇÕ´Ï´Ù.
+    // ìˆ˜í‰ ì†ë„ë§Œ ì„¤ì •í•˜ê³  Yì¶•ì€ ìˆœìˆ˜ ë¬¼ë¦¬/ì¤‘ë ¥ì— ë§¡ê¹ë‹ˆë‹¤.
     private void SetHorizontalVelocity(Vector3 horizontalVelocity)
     {
         Vector3 currentVelocity = itemRigidbody.linearVelocity;
@@ -228,8 +235,8 @@ public class ConveyorItemMover : MonoBehaviour
             horizontalVelocity.z);
     }
 
-    // ¶óÀÎÀÌ ¸ØÃâ ¶§ ¼öÆò ÀÌµ¿¸¸ Á¤Áö½ÃÅµ´Ï´Ù.
-    // YÃà ¼Óµµ¸¦ º¸Á¸ÇØ Áß·Â°ú ³«ÇÏ°¡ °è¼Ó ÀÛµ¿ÇÏ°Ô ÇÕ´Ï´Ù.
+    // ë¼ì¸ì´ ë©ˆì¶œ ë•Œ ìˆ˜í‰ ì´ë™ë§Œ ì •ì§€ì‹œí‚µë‹ˆë‹¤.
+    // Yì¶• ì†ë„ë¥¼ ë³´ì¡´í•´ ì¤‘ë ¥ê³¼ ë‚™í•˜ê°€ ê³„ì† ì‘ë™í•˜ê²Œ í•©ë‹ˆë‹¤.
     private void StopHorizontalMotion()
     {
         if (itemRigidbody == null || itemRigidbody.isKinematic)
@@ -243,20 +250,21 @@ public class ConveyorItemMover : MonoBehaviour
             0f);
     }
 
-    // ÀÌµ¿ ¹æÇâ¿¡ È¸Àü ¿ÀÇÁ¼ÂÀ» Àû¿ëÇÕ´Ï´Ù.
+    // ì´ë™ ë°©í–¥ì— ë§ì¶° Yì¶•(Yaw) íšŒì „ë§Œ ì ìš©í•©ë‹ˆë‹¤.
+    // X/Z íšŒì „ì„ ê±´ë“œë¦¬ì§€ ì•Šì•„ì•¼ Rigidbodyì˜ FreezeRotationX/Z ì œì•½ê³¼ ì¶©ëŒí•˜ì—¬ íŒ½ì´ì²˜ëŸ¼ ë„ëŠ” í˜„ìƒì„ ë°©ì§€í•©ë‹ˆë‹¤.
     private void RotateAlongDirection(Vector3 direction)
     {
         Vector3 planarDirection =
             Vector3.ProjectOnPlane(direction, Vector3.up);
 
-        if (planarDirection.sqrMagnitude <= 0.0001f)
+        if (planarDirection.sqrMagnitude <= 0.001f)
             return;
 
-        Quaternion pathRotation =
-            Quaternion.LookRotation(planarDirection.normalized, Vector3.up);
-
-        Quaternion targetRotation =
-            pathRotation * Quaternion.Euler(rotationOffset);
+        float targetYaw = Mathf.Atan2(planarDirection.x, planarDirection.z) * Mathf.Rad2Deg + rotationOffset.y;
+        Quaternion targetRotation = Quaternion.Euler(
+            itemRigidbody.rotation.eulerAngles.x,
+            targetYaw,
+            itemRigidbody.rotation.eulerAngles.z);
 
         itemRigidbody.MoveRotation(
             Quaternion.Slerp(
@@ -265,7 +273,7 @@ public class ConveyorItemMover : MonoBehaviour
                 rotationSpeed * Time.fixedDeltaTime));
     }
 
-    // ÀÛ¾÷ ¿Ï·á ½Ã È£ÃâÇÏ¸é ´ÙÀ½ ¿şÀÌÆ÷ÀÎÆ®·Î ÁøÇàÇÕ´Ï´Ù.
+    // ì‘ì—… ì™„ë£Œ ì‹œ í˜¸ì¶œí•˜ë©´ ë‹¤ìŒ ì›¨ì´í¬ì¸íŠ¸ë¡œ ì§„í–‰í•©ë‹ˆë‹¤.
     public void ReleaseWaitingAtStopPoint()
     {
         if (!isWaitingAtStopPoint)
@@ -275,7 +283,7 @@ public class ConveyorItemMover : MonoBehaviour
         waypointIndex++;
     }
 
-    // ¾ÆÀÌÅÛÀ» ´Ù¸¥ ¶óÀÎÀ¸·Î ÀÌ°üÇÒ ¶§ »ç¿ëÇÕ´Ï´Ù.
+    // ì•„ì´í…œì„ ë‹¤ë¥¸ ë¼ì¸ìœ¼ë¡œ ì´ê´€í•  ë•Œ ì‚¬ìš©í•©ë‹ˆë‹¤.
     public void TransferToConveyor(
         ConveyorManager manager,
         ConveyorLineId targetLineId,
