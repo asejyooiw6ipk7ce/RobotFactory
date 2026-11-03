@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// 컨베이어 정지점에 도착한 물품 중 불량품을 감지하여 밀어내는 푸셔 액추에이터 제어기
 /// - 컨베이어 환승 모드: 불량품을 밀어서 맞은편 컨베이어(예: Reject 라인)로 이관 (Line A)
-/// - 단순 밀어내기 모드: 목적지 컨베이어가 없을 경우 상자(RejectBox)로 물리 낙하 배출 (Line C)
+/// - 단순 밀어내기 모드: 목적지 컨베이어가 없거나 상자 배출인 경우 상자(RejectBox)로 물리 낙하 배출 (Line C)
 /// </summary>
 public class PusherController : MonoBehaviour
 {
@@ -18,7 +18,7 @@ public class PusherController : MonoBehaviour
     [Tooltip("소스 라인에서 푸셔가 감지할 정지점 웨이포인트 인덱스")]
     [SerializeField] private int stopWaypointIndex;
 
-    [Tooltip("불량품을 보낼 목적지 컨베이어 라인 ID (상자로 밀어내는 경우 기본값 유지 가능)")]
+    [Tooltip("불량품을 보낼 목적지 컨베이어 라인 ID (상자로 밀어내는 경우 dropDirectlyToBox 체크)")]
     [SerializeField] private ConveyorLineId destinationLineId = ConveyorLineId.Reject;
 
     [Tooltip("목적지 컨베이어의 시작 웨이포인트 인덱스")]
@@ -26,6 +26,9 @@ public class PusherController : MonoBehaviour
 
     [Tooltip("목적지 컨베이어 진입 방향 기준점 Transform")]
     [SerializeField] private Transform destinationDirectionPoint;
+
+    [Tooltip("체크 시 목적지 컨베이어 환승 없이 상자(Box)로 단순 물리 낙하 배출합니다 (Line C 푸셔 권장)")]
+    [SerializeField] private bool dropDirectlyToBox = false;
 
     [Header("푸셔 기구부")]
     [Tooltip("물품을 밀어내는 푸셔 헤드 Transform")]
@@ -58,20 +61,16 @@ public class PusherController : MonoBehaviour
             return;
 
         pusherRigidbody = pusherHead.GetComponent<Rigidbody>();
-        if (pusherRigidbody == null)
+        if (pusherRigidbody != null)
         {
-            Debug.LogError("PusherController: Pusher Head에 Rigidbody가 필요합니다.", this);
-            return;
+            pusherRigidbody.isKinematic = true;
+            pusherRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         }
 
-        pusherRigidbody.isKinematic = true;
-        pusherRigidbody.useGravity = false;
-        pusherRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-
-        if (retractedPoint != null)
+        // Line C 푸셔인 경우 기본적으로 상자 직배출 모드로 설정
+        if (sourceLineId == ConveyorLineId.LineC)
         {
-            pusherRigidbody.position = retractedPoint.position;
-            pusherRigidbody.rotation = retractedPoint.rotation;
+            dropDirectlyToBox = true;
         }
     }
 
@@ -196,8 +195,12 @@ public class PusherController : MonoBehaviour
         itemRigidbody.angularVelocity = Vector3.zero;
 
         // 6. 배출 모드 분기 (컨베이어 이관 vs 상자 단순 낙하)
+        // Line C 푸셔이거나 dropDirectlyToBox가 true이면 무조건 상자 배출(모드 B)로 처리
+        bool isBoxDrop = dropDirectlyToBox || (sourceLineId == ConveyorLineId.LineC);
+
         Transform[] destinationWaypoints = conveyorManager.GetLineWaypoints(destinationLineId);
-        bool hasDestinationConveyor = (destinationLineId != sourceLineId) &&
+        bool hasDestinationConveyor = !isBoxDrop &&
+                                      (destinationLineId != sourceLineId) &&
                                       (destinationWaypoints != null && destinationWaypoints.Length > 0);
 
         if (hasDestinationConveyor)
@@ -224,8 +227,23 @@ public class PusherController : MonoBehaviour
         else
         {
             // [모드 B: 단순 밀어내기 / 상자 자유 낙하 (Line C)]
-            // mover.enabled = false 상태 유지 (상자 안으로 물리 중력 낙하)
+            // 중요: ConveyorItemMover가 살아있으면 다른 라인 웨이포인트를 찾아가거나 Z축으로 이동할 수 있으므로 완전히 제거!
+            if (mover != null)
+            {
+                mover.enabled = false;
+                Destroy(mover);
+            }
+
             if (item != null) item.state = ItemState.Idle;
+
+            // 순수 물리 낙하를 위해 수평 속도 리셋 및 중력 가속 유지
+            if (itemRigidbody != null)
+            {
+                itemRigidbody.isKinematic = false;
+                itemRigidbody.useGravity = true;
+                itemRigidbody.linearVelocity = new Vector3(0f, itemRigidbody.linearVelocity.y, 0f);
+                itemRigidbody.angularVelocity = Vector3.zero;
+            }
 
             // 소스 라인은 다음 작업을 위해 재가동 (완제품은 상자로 분리되었으므로 null 전달)
             conveyorManager.ReleaseItemAndRunLine(sourceLineId, null);
@@ -269,50 +287,32 @@ public class PusherController : MonoBehaviour
     /// <summary>
     /// Kinematic Rigidbody를 목표 위치로 물리 이동
     /// </summary>
-    private IEnumerator MovePusherTo(Transform target)
+    private IEnumerator MovePusherTo(Transform targetPoint)
     {
-        if (target == null || pusherRigidbody == null)
-            yield break;
-
-        float moveSpeed = Mathf.Max(0.01f, pusherSpeed);
-
-        while (Vector3.Distance(pusherRigidbody.position, target.position) > 0.001f)
+        while (Vector3.Distance(pusherRigidbody.position, targetPoint.position) > 0.005f)
         {
-            yield return new WaitForFixedUpdate();
-
             Vector3 nextPosition = Vector3.MoveTowards(
                 pusherRigidbody.position,
-                target.position,
-                moveSpeed * Time.fixedDeltaTime);
-
-            Quaternion nextRotation = Quaternion.RotateTowards(
-                pusherRigidbody.rotation,
-                target.rotation,
-                360f * Time.fixedDeltaTime);
+                targetPoint.position,
+                pusherSpeed * Time.fixedDeltaTime);
 
             pusherRigidbody.MovePosition(nextPosition);
-            pusherRigidbody.MoveRotation(nextRotation);
+            yield return new WaitForFixedUpdate();
         }
 
-        yield return new WaitForFixedUpdate();
-
-        pusherRigidbody.MovePosition(target.position);
-        pusherRigidbody.MoveRotation(target.rotation);
+        pusherRigidbody.MovePosition(targetPoint.position);
     }
 
     /// <summary>
-    /// 트리거가 아닌 유효한 충돌체(Solid Collider)가 있는지 확인
+    /// 물품 또는 자식에 물리적 충돌체(Non-Trigger Collider)가 존재하는지 확인
     /// </summary>
     private bool HasSolidCollider(GameObject target)
     {
-        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
-
-        foreach (Collider targetCollider in colliders)
+        Collider[] colliders = target.GetComponentsInChildren<Collider>();
+        foreach (Collider col in colliders)
         {
-            if (targetCollider != null && targetCollider.enabled && !targetCollider.isTrigger)
-            {
+            if (!col.isTrigger)
                 return true;
-            }
         }
 
         return false;

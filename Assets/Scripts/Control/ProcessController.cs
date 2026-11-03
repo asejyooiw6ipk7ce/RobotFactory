@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 public enum ProcessState { Stopped, Running, Paused, Alarm }
@@ -307,6 +307,7 @@ public class ProcessController : MonoBehaviour
 
             // 8-5) Line A(베이스 공급 라인) 재가동: 새 베이스가 조립 정지점으로 진입할 수 있도록 재개
             conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineA, null);
+            conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineB, null);
         }
     }
 
