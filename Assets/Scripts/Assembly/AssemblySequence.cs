@@ -138,6 +138,11 @@ public partial class AssemblySequence : MonoBehaviour
         RecordInitialClawState();
     }
 
+    void OnDisable()
+    {
+        ReleaseBaseAfterAssembly();
+    }
+
 
     /// <summary>
     /// 플레이 시작 시점의 클로 원위치(컨베이어 위)를 기억
@@ -932,6 +937,107 @@ public partial class AssemblySequence : MonoBehaviour
 
     #endregion
 
+    #region 차체 조립 지그/클램핑 (Collider & Rigidbody 제어)
+
+    private Collider[] cachedBaseColliders = null;
+    private Rigidbody cachedBaseRb = null;
+    private bool isBaseClampedForAssembly = false;
+
+    /// <summary>
+    /// 조립 시작 시 차체를 지그(Fixture)로 고정하듯 안전하게 물리 고정
+    /// - BoxCollider 일시 비활성화 (로봇팔 그리퍼 및 소켓 진입 시 충돌 간섭/차체 들림 원천 방지)
+    /// - isKinematic 활성화 및 useGravity 일시 비활성화 (공중 뜸, 회전, 밀림 방지)
+    /// </summary>
+    public void ClampBaseForAssembly()
+    {
+        if (targetRobotBase == null) return;
+
+        cachedBaseRb = targetRobotBase.GetComponent<Rigidbody>();
+        if (cachedBaseRb != null)
+        {
+            cachedBaseRb.linearVelocity = Vector3.zero;
+            cachedBaseRb.angularVelocity = Vector3.zero;
+            cachedBaseRb.useGravity = false;
+            cachedBaseRb.isKinematic = true;
+        }
+
+        cachedBaseColliders = targetRobotBase.GetComponentsInChildren<Collider>(true);
+        if (cachedBaseColliders != null)
+        {
+            foreach (var col in cachedBaseColliders)
+            {
+                if (col != null) col.enabled = false;
+            }
+        }
+
+        // 클로와 차체 콜라이더 간 상호 충돌 무시 보장 (스냅 후 콜라이더 재활성화 시 반발 폭발 방지)
+        if (clawPart != null && cachedBaseColliders != null)
+        {
+            var clawCols = clawPart.GetComponentsInChildren<Collider>(true);
+            foreach (var c1 in clawCols)
+            {
+                foreach (var c2 in cachedBaseColliders)
+                {
+                    if (c1 != null && c2 != null)
+                        Physics.IgnoreCollision(c1, c2, true);
+                }
+            }
+        }
+
+        isBaseClampedForAssembly = true;
+        Debug.Log($"<color=cyan>[AssemblySequence]</color> 🔒 차체({targetRobotBase.name}) 조립용 클램핑 완료 (BoxCollider OFF, isKinematic ON, Gravity OFF)");
+    }
+
+    /// <summary>
+    /// 조립 완료(또는 종료) 후 차체의 물리 및 콜라이더 복구하여 컨베이어 이송 재개 가능 상태로 복귀
+    /// </summary>
+    public void ReleaseBaseAfterAssembly()
+    {
+        if (!isBaseClampedForAssembly && cachedBaseColliders == null && cachedBaseRb == null) return;
+
+        if (cachedBaseColliders != null)
+        {
+            foreach (var col in cachedBaseColliders)
+            {
+                if (col != null) col.enabled = true;
+            }
+            cachedBaseColliders = null;
+        }
+        else if (targetRobotBase != null)
+        {
+            var cols = targetRobotBase.GetComponentsInChildren<Collider>(true);
+            foreach (var col in cols)
+            {
+                if (col != null) col.enabled = true;
+            }
+        }
+
+        if (cachedBaseRb != null)
+        {
+            cachedBaseRb.isKinematic = false;
+            cachedBaseRb.useGravity = true;
+            cachedBaseRb.linearVelocity = Vector3.zero;
+            cachedBaseRb.angularVelocity = Vector3.zero;
+            cachedBaseRb = null;
+        }
+        else if (targetRobotBase != null)
+        {
+            var rb = targetRobotBase.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        isBaseClampedForAssembly = false;
+        Debug.Log("<color=cyan>[AssemblySequence]</color> 🔓 차체 조립 클램핑 해제 완료 (BoxCollider ON, isKinematic OFF, Gravity ON)");
+    }
+
+    #endregion
+
     #region 다이어그램 조립 시퀀스 (Assemble)
     /// <summary>
     /// SRS FR-08 결합 틀어짐 각도 오차 산출 (난수 생성)
@@ -997,6 +1103,7 @@ public partial class AssemblySequence : MonoBehaviour
 
         AutoFindReferences();
         ApplyGripperCloseTarget();
+        ClampBaseForAssembly();
 
         // [단독 테스트 안전 복원] 동일 클로로 반복 테스트할 때만 초기 위치로 복원
         if (autoResetClawOnAssembleStart && initialClawRecorded && clawPart != null && clawPart.parent != initialClawParent)
@@ -1218,6 +1325,8 @@ public partial class AssemblySequence : MonoBehaviour
             yield return RejectClawAndHandleDefectRoutine(insertApproach, insertDir, alignWristYaw);
         }
 
+        // 안전 보장: 시퀀스 종료 시 무조건 차체 클램핑 해제
+        ReleaseBaseAfterAssembly();
         IsBusy = false;
     }
 
@@ -1325,6 +1434,9 @@ public partial class AssemblySequence : MonoBehaviour
             // 2. 상공으로 안전 상승 (차체 간섭 방지)
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
+
+            // ★ 차체 간섭 구역 벗어남 -> 차체 물리 복원 (불량 배출 가능 상태)
+            ReleaseBaseAfterAssembly();
 
             // 3. 폐기함(RejectBin) 상단 개구부 상공으로 선회 이동
             Vector3 dropPos = GetRejectBinDropPosition();
@@ -1455,6 +1567,9 @@ public partial class AssemblySequence : MonoBehaviour
             Vector3 highApproach = new Vector3(insertApproach.x, GetHomeWorldPosition().y + 0.25f, insertApproach.z);
             yield return ik.MoveLinearSmooth(highApproach, retractLiftSpeed, alignWristYaw);
 
+            // ★ 로봇 그리퍼가 차체에서 안전하게 벗어났으므로 차체의 BoxCollider, isKinematic, useGravity 복원
+            ReleaseBaseAfterAssembly();
+
             // 8-1. 그리퍼가 시야에서 완전히 벗어난 직후 카메라3 완제품 비전 촬영 및 결합 각도 판정 (FR-09)
             if (camera3Inspector != null)
             {
@@ -1490,6 +1605,7 @@ public partial class AssemblySequence : MonoBehaviour
     /// </summary>
     public IEnumerator ResetAttemptRoutine()
     {
+        ReleaseBaseAfterAssembly();
         ResetClawToInitialState();
         if (gripper != null) yield return gripper.Open();
         if (ik != null)
@@ -1506,6 +1622,7 @@ public partial class AssemblySequence : MonoBehaviour
     /// </summary>
     public IEnumerator RecoverFailedAttemptRoutine()
     {
+        ReleaseBaseAfterAssembly();
         ResetClawToInitialState();
         if (gripper != null) yield return gripper.Open();
         if (ik != null)
