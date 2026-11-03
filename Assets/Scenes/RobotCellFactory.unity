@@ -703,6 +703,75 @@ MonoBehaviour:
   station3DefectRate: 0.1
   minInterval: 1
   maxInterval: 2
+--- !u!1001 &387517239
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.4596
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.4596
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.4596
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -22.72
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -29.88
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 6515322764505285745, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8323300563620608496, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
+      propertyPath: m_Name
+      value: FactoryPrefab
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ed3570b785a65374c9b2cba1c8e332e6, type: 3}
 --- !u!1 &557621828
 GameObject:
   m_ObjectHideFlags: 0
@@ -733,8 +802,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ProcessController
   conveyors: {fileID: 1846249303}
-  station1: {fileID: 901069221}
+  camera2: {fileID: 0}
   assembly: {fileID: 1939741620}
+  station1: {fileID: 901069221}
+  basePusher: {fileID: 0}
+  baseSpawner: {fileID: 0}
+  clawSpawner: {fileID: 0}
 --- !u!4 &557621830
 Transform:
   m_ObjectHideFlags: 0
@@ -1237,10 +1310,13 @@ MonoBehaviour:
   stopper: {fileID: 153596570}
   ik: {fileID: 1300464594}
   inspectPose: {fileID: 951458694}
+  inspectHeightOffset: 0.15
+  autoStartOnTrigger: 0
   robotId: 1
   stationId: 0
   testResult: 0
   testDefect: 2
+  autoDetectPartDefect: 1
   reject: {fileID: 0}
 --- !u!1 &931548187
 GameObject:
@@ -1748,12 +1824,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6185e905f221c74389bde0d56182fa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InspectRejectSequence
+  showReachabilityGizmos: 1
   ik: {fileID: 0}
   gripper: {fileID: 1300464596}
   pickPoint: {fileID: 951458694}
   rejectPose: {fileID: 1992416190}
+  rejectBin: {fileID: 0}
+  targetPart: {fileID: 0}
   liftHeight: 0.1
   moveSpeed: 0.2
+  gripWidthMm: 48
+  defaultPickYaw: 90
+  safeTransitHeightOffset: 0.65
+  pickHeightOffset: -0.025
+  dropHeightOffset: 0.18
   maxGraspTries: 100
 --- !u!1 &1433068740
 GameObject:
@@ -3430,17 +3514,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 99572374}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2005934183 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4831014747622002404, guid: 811faa840f950944f9c89570dfc6244a, type: 3}
-  m_PrefabInstance: {fileID: 1300464593}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 557de97dc3a66724ab7f582e9d0f40fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GripperController
 --- !u!1001 &2037044640
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3658,3 +3731,4 @@ SceneRoots:
   - {fileID: 1450697611}
   - {fileID: 557621830}
   - {fileID: 1040512998}
+  - {fileID: 387517239}
