@@ -1,60 +1,50 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class ConveyorManager : MonoBehaviour
 {
     [Serializable]
-    private class ConveyorLine
+    public class ConveyorLine
     {
-        [Tooltip("ÀÌ ¼³Á¤ÀÌ °ü¸®ÇÒ ¶óÀÎ ID")]
+        [Tooltip("í•´ë‹¹ ì»¨ë² ì´ì–´ ë¼ì¸ì˜ ì‹ë³„ ID")]
         public ConveyorLineId lineId;
 
-        [Tooltip("ÀÌ ¶óÀÎ¿¡ Æ÷ÇÔµÈ º§Æ® Renderer ÀüÃ¼")]
+        [Tooltip("ì´ ë¼ì¸ì— í¬í•¨ëœ ë²¨íŠ¸ Renderer ì»´í¬ë„ŒíŠ¸ ëª©ë¡")]
         public Renderer[] beltRenderers;
 
-        [Tooltip("¾ÆÀÌÅÛÀÌ ÀÌµ¿ÇÒ °æ·Î. ÁøÇà ¼ø¼­´ë·Î ÁöÁ¤ÇÕ´Ï´Ù.")]
+        [Tooltip("ê²½ë¡œ ì›¨ì´í¬ì¸íŠ¸ ëª©ë¡. ìˆœì„œëŒ€ë¡œ ì´ë™í•©ë‹ˆë‹¤.")]
         public Transform[] waypoints;
 
-        [Tooltip("µµÂø ½Ã ¶óÀÎ ÀüÃ¼¸¦ ¸ØÃâ ¿şÀÌÆ÷ÀÎÆ® ÀÎµ¦½º")]
+        [Tooltip("ì •ì§€í•´ì•¼ í•˜ëŠ” ì›¨ì´í¬ì¸íŠ¸ì˜ ì¸ë±ìŠ¤ ëª©ë¡")]
         public int[] stopWaypointIndices;
 
-        [Tooltip("ÀÌ ¶óÀÎÀÇ º§Æ® ¾Ö´Ï¸ŞÀÌ¼Ç ¹× ¾ÆÀÌÅÛ ÀÌµ¿ ¼Óµµ")]
+        [Tooltip("í•´ë‹¹ ë¼ì¸ì˜ ì •ì§€ì ì— ìœ„ì¹˜í•œ ìŠ¤í† í¼ ì»´í¬ë„ŒíŠ¸ ëª©ë¡")]
+        public PartStopper[] stoppers;
+
+        [Tooltip("ì´ ë¼ì¸ì˜ ë²¨íŠ¸ í…ìŠ¤ì²˜ ì• ë‹ˆë©”ì´ì…˜ ë° ë¬¼ì²´ ì´ë™ ì†ë„")]
         public float speed = 0.5f;
 
-        // ÇöÀç ¶óÀÎÀÌ ¿îÀü »óÅÂÀÎÁö ÀúÀåÇÕ´Ï´Ù.
-        // ÀüÃ¼ ÀÏ½ÃÁ¤Áö »óÅÂ¿Í °³º° ¶óÀÎ Á¤Áö¸¦ ±¸ºĞÇÏ´Â µ¥ »ç¿ëÇÕ´Ï´Ù.
+        // í˜„ì¬ ë¼ì¸ì´ ê°€ë™ ì¤‘ì¸ì§€ ì—¬ë¶€
         [NonSerialized] public bool isRunning;
     }
 
-    [Header("¶óÀÎ ¼³Á¤")]
-
-    // ¶óÀÎ¸¶´Ù ¼³Á¤À» ÇÏ³ª¾¿ µî·ÏÇÕ´Ï´Ù.
-    // °°Àº ID¸¦ ¿©·¯ °³ ¸¸µéÁö ¸»°í, ÇÑ ¶óÀÎÀÇ Renderer¿Í °æ·Î¸¦ ÇÑ ¼³Á¤¿¡ ¸ğÀ¸¼¼¿ä.
+    [Header("ì»¨ë² ì´ì–´ ë¼ì¸ ëª©ë¡")]
     [SerializeField] private ConveyorLine[] lines;
 
-    [Header("½ÃÀÛ ¼³Á¤")]
+    [Header("ì´ˆê¸° ë™ì‘ ì„¤ì •")]
+    [Tooltip("ì²´í¬í•˜ë©´ ì”¬ ì‹œì‘ ì‹œ ëª¨ë“  ë¼ì¸ì´ ìë™ìœ¼ë¡œ ê°€ë™ë©ë‹ˆë‹¤.")]
+    [SerializeField] private bool startOnAwake = true;
 
-    // Ã¼Å©ÇÏ¸é ¾À ½ÃÀÛ ½Ã ¸ğµç ¶óÀÎÀ» ¿îÀüÇÕ´Ï´Ù.
-    [SerializeField] private bool startOnAwake;
+    // ì…°ì´ë” í”„ë¡œí¼í‹° ID
+    private static readonly int SpeedIDRotor = Shader.PropertyToID("_Spped");
+    private static readonly int SpeedIDBase = Shader.PropertyToID("_Speed");
 
-    // ±âÁ¸ ¼ÎÀÌ´õÀÇ ÇÁ·ÎÆÛÆ¼ ÀÌ¸§ÀÔ´Ï´Ù.
-    // ÇÁ·ÎÁ§Æ® ¼ÎÀÌ´õÀÇ Ã¶ÀÚ "_Spped"¸¦ ±×´ë·Î »ç¿ëÇÕ´Ï´Ù.
-    private static readonly int SpeedIDRotor =
-        Shader.PropertyToID("_Spped");
-
-    private static readonly int SpeedIDBase =
-        Shader.PropertyToID("_Speed");
-
-    // ·»´õ·¯ ¸ÓÆ¼¸®¾ó ¼Ó¼ºÀ» °»½ÅÇÒ ¶§ Àç»ç¿ëÇÕ´Ï´Ù.
     private MaterialPropertyBlock propertyBlock;
-
-    // ÀüÃ¼ ÀÏ½ÃÁ¤Áö »óÅÂÀÔ´Ï´Ù.
     private bool isPaused;
 
-    // ¾ÆÀÌÅÛÀÌ Á¤Áö ¿şÀÌÆ÷ÀÎÆ®¿¡ µµÂøÇÏ¸é ÀÛ¾÷ Ã³¸® ÂÊ¿¡ ¾Ë¸³´Ï´Ù.
-    // ¸Å°³º¯¼ö: ¶óÀÎ ID, ¿şÀÌÆ÷ÀÎÆ® ÀÎµ¦½º, µµÂøÇÑ ¾ÆÀÌÅÛ
-    public event Action<ConveyorLineId, int, GameObject>
-        OnItemArrivedAtStopPoint;
+    // ì•„ì´í…œì´ ì •ì§€ ì›¨ì´í¬ì¸íŠ¸ì— ë„ì°©í–ˆì„ ë•Œ ì™¸ë¶€ì— ì•Œë¦¬ëŠ” ì´ë²¤íŠ¸ (ë¼ì¸ ID, ì›¨ì´í¬ì¸íŠ¸ ì¸ë±ìŠ¤, ë„ì°© ì•„ì´í…œ)
+    public event Action<ConveyorLineId, int, GameObject> OnItemArrivedAtStopPoint;
 
     public bool IsPaused => isPaused;
 
@@ -65,7 +55,6 @@ public class ConveyorManager : MonoBehaviour
         if (lines == null)
             return;
 
-        // ½ÃÀÛ ¿É¼ÇÀ» °¢ ¶óÀÎ¿¡ Àû¿ëÇÕ´Ï´Ù.
         foreach (ConveyorLine line in lines)
         {
             if (line == null)
@@ -76,7 +65,6 @@ public class ConveyorManager : MonoBehaviour
         }
     }
 
-    // ID¿¡ ÇØ´çÇÏ´Â ¶óÀÎ ¼³Á¤À» Ã£½À´Ï´Ù.
     private ConveyorLine FindLine(ConveyorLineId lineId)
     {
         if (lines != null)
@@ -88,31 +76,24 @@ public class ConveyorManager : MonoBehaviour
             }
         }
 
-        Debug.LogError(
-            $"ConveyorManager: {lineId} ¶óÀÎÀÌ µî·ÏµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
-            this);
-
+        Debug.LogError($"ConveyorManager: {lineId} ë¼ì¸ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.", this);
         return null;
     }
 
-    // ¶óÀÎ »óÅÂ¿Í ¼Óµµ¸¦ ¼ÎÀÌ´õ¿¡ Àû¿ëÇÕ´Ï´Ù.
     private void ApplyLineSpeed(ConveyorLine line)
     {
         if (line == null || line.beltRenderers == null)
             return;
 
-        // Á¤Áö ¶Ç´Â ÀüÃ¼ ÀÏ½ÃÁ¤Áö »óÅÂ¿¡¼­´Â 0À» Àû¿ëÇÕ´Ï´Ù.
-        float shaderSpeed =
-            line.isRunning && !isPaused
-                ? Mathf.Max(0f, line.speed)
-                : 0f;
+        float shaderSpeed = line.isRunning && !isPaused
+            ? Mathf.Max(0f, line.speed)
+            : 0f;
 
         foreach (Renderer beltRenderer in line.beltRenderers)
         {
             if (beltRenderer == null)
                 continue;
 
-            // ±âÁ¸ ¸ÓÆ¼¸®¾ó ¼Ó¼ºÀº À¯ÁöÇÏ°í ÄÁº£ÀÌ¾î ¼Ó¼º¸¸ º¯°æÇÕ´Ï´Ù.
             beltRenderer.GetPropertyBlock(propertyBlock);
             propertyBlock.SetFloat(SpeedIDRotor, shaderSpeed);
             propertyBlock.SetFloat(SpeedIDBase, shaderSpeed);
@@ -120,40 +101,30 @@ public class ConveyorManager : MonoBehaviour
         }
     }
 
-    // ÇØ´ç ¶óÀÎÀÇ ÇöÀç ¿îÀü »óÅÂ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
     public bool IsLineRunning(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
-
-        return line != null &&
-               line.isRunning &&
-               !isPaused;
+        return line != null && line.isRunning && !isPaused;
     }
 
-    // ÇØ´ç ¶óÀÎÀÌ ¿òÁ÷ÀÌ´Â ÁßÀÌ¸é ¼Óµµ¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
-    // Á¤Áö ¶Ç´Â ÀÏ½ÃÁ¤Áö »óÅÂ¸é 0À» ¹İÈ¯ÇÕ´Ï´Ù.
     public float GetLineSpeed(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
-
         if (line == null || !line.isRunning || isPaused)
             return 0f;
 
         return Mathf.Max(0f, line.speed);
     }
 
-    // ÀÌµ¿±â°¡ »ç¿ëÇÒ °æ·Î¸¦ ¹İÈ¯ÇÕ´Ï´Ù.
     public Transform[] GetLineWaypoints(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
         return line != null ? line.waypoints : null;
     }
 
-    // ÁöÁ¤ ÀÎµ¦½º°¡ ¶óÀÎ Á¤Áö ÁöÁ¡ÀÎÁö È®ÀÎÇÕ´Ï´Ù.
     public bool IsStopWaypoint(ConveyorLineId lineId, int waypointIndex)
     {
         ConveyorLine line = FindLine(lineId);
-
         if (line == null || line.stopWaypointIndices == null)
             return false;
 
@@ -166,14 +137,17 @@ public class ConveyorManager : MonoBehaviour
         return false;
     }
 
-    // ¾ÆÀÌÅÛÀÌ Á¤Áö ÁöÁ¡¿¡ µµÂøÇßÀ» ¶§ È£ÃâÇÕ´Ï´Ù.
-    // ¶óÀÎÀ» ¸ÕÀú Á¤Áö½ÃÅ² µÚ ÀÛ¾÷ Ã³¸® ÂÊ¿¡ ÀÌº¥Æ®¸¦ º¸³À´Ï´Ù.
+    /// <summary>
+    /// ì•„ì´í…œì´ ì •ì§€ ì›¨ì´í¬ì¸íŠ¸ì— ë„ë‹¬í–ˆì„ ë•Œ í˜¸ì¶œë©ë‹ˆë‹¤.
+    /// ë¼ì¸ì„ ë©ˆì¶”ê³  ìŠ¤í† í¼ë¥¼ ì˜¬ë¦° ë’¤ ì™¸ë¶€ì— ì´ë²¤íŠ¸ë¥¼ ë°œí–‰í•©ë‹ˆë‹¤.
+    /// </summary>
     public void NotifyItemArrivedAtStopPoint(
         ConveyorLineId lineId,
         int waypointIndex,
         GameObject item)
     {
         StopLine(lineId);
+        RaiseStoppers(lineId);
 
         OnItemArrivedAtStopPoint?.Invoke(
             lineId,
@@ -181,18 +155,54 @@ public class ConveyorManager : MonoBehaviour
             item);
     }
 
-    // ÀÛ¾÷ÀÌ ³¡³­ µÚ ´ë±â ÁßÀÎ ¾ÆÀÌÅÛÀ» ÇØÁ¦ÇÏ°í ¶óÀÎÀ» Àç°¡µ¿ÇÕ´Ï´Ù.
+    /// <summary>
+    /// ì •ì§€ì ì— ëŒ€ê¸° ì¤‘ì¸ ë¬¼ì²´ì™€ ë¼ì¸ì„ ë‹¤ì‹œ ë™ì‘ì‹œí‚µë‹ˆë‹¤.
+    /// ìŠ¤í† í¼ë¥¼ ë‚´ë¦¬ê³ (í†µê³¼ í—ˆìš©), ì•„ì´í…œ ëŒ€ê¸° ìƒíƒœë¥¼ í•´ì œí•˜ë©°, ë¼ì¸ì„ ì¬ê°€ë™í•©ë‹ˆë‹¤.
+    /// </summary>
     public void ReleaseItemAndRunLine(
         ConveyorLineId lineId,
         ConveyorItemMover mover)
     {
+        LowerStoppers(lineId);
+
         if (mover != null)
             mover.ReleaseWaitingAtStopPoint();
 
         RunLine(lineId);
     }
 
-    // Æ¯Á¤ ¶óÀÎ ÇÏ³ª¸¦ ¿îÀüÇÕ´Ï´Ù.
+    /// <summary>
+    /// í•´ë‹¹ ë¼ì¸ì— ì—°ê²°ëœ ìŠ¤í† í¼ë“¤ì„ ë‚´ë¦½ë‹ˆë‹¤. (ë¶€í’ˆ í†µê³¼ í—ˆìš©)
+    /// </summary>
+    public void LowerStoppers(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+        if (line == null || line.stoppers == null)
+            return;
+
+        foreach (PartStopper stopper in line.stoppers)
+        {
+            if (stopper != null)
+                StartCoroutine(stopper.Resume());
+        }
+    }
+
+    /// <summary>
+    /// í•´ë‹¹ ë¼ì¸ì— ì—°ê²°ëœ ìŠ¤í† í¼ë“¤ì„ ì˜¬ë¦½ë‹ˆë‹¤. (ë¶€í’ˆ ì •ì§€ ê°€ë¡œë§‰ìŒ)
+    /// </summary>
+    public void RaiseStoppers(ConveyorLineId lineId)
+    {
+        ConveyorLine line = FindLine(lineId);
+        if (line == null || line.stoppers == null)
+            return;
+
+        foreach (PartStopper stopper in line.stoppers)
+        {
+            if (stopper != null)
+                StartCoroutine(stopper.Stop());
+        }
+    }
+
     public void RunLine(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
@@ -203,7 +213,6 @@ public class ConveyorManager : MonoBehaviour
         ApplyLineSpeed(line);
     }
 
-    // Æ¯Á¤ ¶óÀÎ ÇÏ³ª¸¦ Á¤ÁöÇÕ´Ï´Ù.
     public void StopLine(ConveyorLineId lineId)
     {
         ConveyorLine line = FindLine(lineId);
@@ -214,93 +223,70 @@ public class ConveyorManager : MonoBehaviour
         ApplyLineSpeed(line);
     }
 
-    // µî·ÏµÈ ¸ğµç ¶óÀÎÀ» ¿îÀüÇÕ´Ï´Ù.
     public void StartAll()
     {
         isPaused = false;
-
-        if (lines == null)
-            return;
+        if (lines == null) return;
 
         foreach (ConveyorLine line in lines)
         {
-            if (line == null)
-                continue;
-
+            if (line == null) continue;
             line.isRunning = true;
             ApplyLineSpeed(line);
         }
     }
 
-    // µî·ÏµÈ ¸ğµç ¶óÀÎÀ» Á¤ÁöÇÕ´Ï´Ù.
     public void StopAll()
     {
-        if (lines == null)
-            return;
+        if (lines == null) return;
 
         foreach (ConveyorLine line in lines)
         {
-            if (line == null)
-                continue;
-
+            if (line == null) continue;
             line.isRunning = false;
             ApplyLineSpeed(line);
         }
     }
 
-    // °¢ ¶óÀÎÀÇ ¿îÀü »óÅÂ¸¦ º¸Á¸ÇÑ Ã¤ ÀüÃ¼ ÀÏ½ÃÁ¤ÁöÇÕ´Ï´Ù.
     public void PauseAll()
     {
         isPaused = true;
-
-        if (lines == null)
-            return;
+        if (lines == null) return;
 
         foreach (ConveyorLine line in lines)
             ApplyLineSpeed(line);
     }
 
-    // ÀüÃ¼ ÀÏ½ÃÁ¤Áö¸¦ ÇØÁ¦ÇÕ´Ï´Ù.
-    // °³º°ÀûÀ¸·Î Á¤ÁöÇØ µĞ ¶óÀÎÀº °è¼Ó Á¤Áö »óÅÂ¸¦ À¯ÁöÇÕ´Ï´Ù.
     public void ResumeAll()
     {
         isPaused = false;
-
-        if (lines == null)
-            return;
+        if (lines == null) return;
 
         foreach (ConveyorLine line in lines)
             ApplyLineSpeed(line);
     }
 
-    // Æ¯Á¤ ¶óÀÎÀÇ ¼Óµµ¸¦ ¼³Á¤ÇÕ´Ï´Ù.
     public void SetLineSpeed(ConveyorLineId lineId, float speed)
     {
         ConveyorLine line = FindLine(lineId);
-        if (line == null)
-            return;
+        if (line == null) return;
 
         line.speed = Mathf.Max(0f, speed);
         ApplyLineSpeed(line);
     }
 
-    // ¸ğµç ¶óÀÎÀÇ ¼Óµµ¸¦ °°Àº °ªÀ¸·Î ¼³Á¤ÇÕ´Ï´Ù.
     public void SetAllSpeed(float speed)
     {
-        if (lines == null)
-            return;
+        if (lines == null) return;
 
         foreach (ConveyorLine line in lines)
         {
-            if (line == null)
-                continue;
-
+            if (line == null) continue;
             line.speed = Mathf.Max(0f, speed);
             ApplyLineSpeed(line);
         }
     }
 
-    // ¼±ÅÃµÈ ¸Å´ÏÀúÀÇ ¶óÀÎ °æ·Î¸¦ Scene ºä¿¡ Ç¥½ÃÇÕ´Ï´Ù.
     private void OnDrawGizmosSelected()
     {
         if (lines == null)
@@ -315,16 +301,12 @@ public class ConveyorManager : MonoBehaviour
 
             for (int i = 0; i < line.waypoints.Length - 1; i++)
             {
-                if (line.waypoints[i] != null &&
-                    line.waypoints[i + 1] != null)
+                if (line.waypoints[i] != null && line.waypoints[i + 1] != null)
                 {
-                    Gizmos.DrawLine(
-                        line.waypoints[i].position,
-                        line.waypoints[i + 1].position);
+                    Gizmos.DrawLine(line.waypoints[i].position, line.waypoints[i + 1].position);
                 }
             }
 
-            // Á¤Áö ÁöÁ¡Àº ³ë¶õ ±¸Ã¼·Î Ç¥½ÃÇÕ´Ï´Ù.
             if (line.stopWaypointIndices == null)
                 continue;
 
@@ -332,13 +314,9 @@ public class ConveyorManager : MonoBehaviour
 
             foreach (int stopIndex in line.stopWaypointIndices)
             {
-                if (stopIndex >= 0 &&
-                    stopIndex < line.waypoints.Length &&
-                    line.waypoints[stopIndex] != null)
+                if (stopIndex >= 0 && stopIndex < line.waypoints.Length && line.waypoints[stopIndex] != null)
                 {
-                    Gizmos.DrawSphere(
-                        line.waypoints[stopIndex].position,
-                        0.08f);
+                    Gizmos.DrawSphere(line.waypoints[stopIndex].position, 0.08f);
                 }
             }
         }
