@@ -34,6 +34,10 @@ public class ItemSpawner : MonoBehaviour
     // 이 스포너가 아이템을 투입할 라인입니다.
     [SerializeField] private ConveyorLineId lineId;
 
+    // 불량품이 생성될 확률입니다. 0.5는 50%입니다.
+    [Header("불량품 설정")]
+    [SerializeField, Range(0f, 1f)] private float defectiveProbability = 0.5f;
+
     // 지금까지 생성한 아이템 수입니다.
     private int currentSpawnCount;
 
@@ -113,8 +117,7 @@ public class ItemSpawner : MonoBehaviour
             return false;
         }
 
-        // 프리팹에 저장된 중력/동적 설정을 유지합니다.
-        // 생성 직후 기존 속도가 남아 있지 않도록 초기 속도만 지웁니다.
+        // 생성 직후 기존 속도를 초기화합니다.
         itemRigidbody.linearVelocity = Vector3.zero;
         itemRigidbody.angularVelocity = Vector3.zero;
         itemRigidbody.WakeUp();
@@ -136,17 +139,42 @@ public class ItemSpawner : MonoBehaviour
             direction,
             rotationOffset);
 
-        // Item 컴포넌트가 있으면 정상/불량을 무작위로 지정합니다.
+        // 불량 여부를 한 번만 무작위로 정합니다.
+        bool isDefective = Random.value < defectiveProbability;
+
+        // 기존 Pusher가 ItemType을 확인하므로 판정 결과를 기록합니다.
         Item item = newItem.GetComponent<Item>();
 
         if (item != null)
         {
-            ItemType randomType = Random.Range(0, 2) == 0
-                ? ItemType.Normal
-                : ItemType.Defective;
+            item.itemType = isDefective
+                ? ItemType.Defective
+                : ItemType.Normal;
 
-            item.itemType = randomType;
-            item.shouldBeGrabbed = randomType == ItemType.Normal;
+            item.shouldBeGrabbed = !isDefective;
+        }
+        else
+        {
+            Debug.LogWarning(
+                "ItemSpawner: 아이템 프리팹 루트에 Item 컴포넌트가 없습니다.",
+                newItem);
+        }
+
+        // 불량품이면 PartLoss에 지정된 부품을 비활성화합니다.
+        if (isDefective)
+        {
+            PartLoss partLoss = newItem.GetComponent<PartLoss>();
+
+            if (partLoss != null)
+            {
+                partLoss.ApplyDefect(DefectType.PartLoss);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "ItemSpawner: 불량 아이템인데 PartLoss 컴포넌트를 찾지 못했습니다.",
+                    newItem);
+            }
         }
 
         return true;
