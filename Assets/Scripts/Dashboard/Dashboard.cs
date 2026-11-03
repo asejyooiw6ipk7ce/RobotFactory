@@ -42,15 +42,23 @@ public class Dashboard : MonoBehaviour
             enabled = false;
             return;
         }
-        BindUI();
+        // BindUI는 UIDocument의 rootVisualElement가 준비된 뒤(OnEnable/Start)에 호출해야 함
     }
 
     private void OnEnable()
     {
         if (document == null) return;
+        if (finalYield == null) BindUI();
         InspectEventBus.Published += OnPublished;
         InspectEventBus.CounterAdded += OnCounterAdded;
         InspectEventBus.RobotStateChanged += OnRobotStateChanged;
+        Refresh();
+    }
+
+    private void Start()
+    {
+        if (document == null) return;
+        if (finalYield == null) BindUI();
         Refresh();
     }
 
@@ -118,7 +126,7 @@ public class Dashboard : MonoBehaviour
 
     private void Refresh()
     {
-        if (document == null) return;
+        if (document == null || finalYield == null) return;   // UI 바인딩 전이면 건너뜀
 
         finalYield.text = FormatPercent(stats.FinalYieldRate, "0.0");
 

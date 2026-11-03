@@ -21,6 +21,7 @@ public class ProcessController : MonoBehaviour
     private GameObject waitingPart;   // LineB (클로)
     private GameObject waitingBase;   // LineA (베이스)
     private Coroutine cycle;
+    private bool clawInspectPassed;   // 이번 사이클에서 클로가 검사를 '통과'했는지 (아니면 조립 금지)
 
     private void OnEnable()
     {
@@ -127,9 +128,26 @@ public class ProcessController : MonoBehaviour
             yield return new WaitUntil(() =>
                 State == ProcessState.Running && waitingPart != null);
             yield return InspectClawUntilPass();
+            if (!clawInspectPassed)
+            {
+                // 검사 통과 없이 조립으로 넘어가지 않도록 알람 정지
+                State = ProcessState.Alarm;
+                conveyors.StopAll();
+                continue;
+            }
 
-            var part = waitingPart.GetComponent<PartInfo>();
-            var partMover = waitingPart.GetComponent<ConveyorItemMover>();
+            // 5-1) 검사 통과한 클로를 LineB 조립 정지점(2번 정지점)까지 이송한 뒤 도착을 기다림
+            //      (검사 정지점에서 바로 조립하면 클로가 조립 위치에 없음)
+            var clawGo = waitingPart;
+            var part = clawGo.GetComponent<PartInfo>();
+            var partMover = clawGo.GetComponent<ConveyorItemMover>();
+            waitingPart = null;
+            conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineB, partMover);
+            yield return new WaitUntil(() =>
+                State == ProcessState.Running && waitingPart == clawGo);
+            // 이 클로가 조립 정지점에 도착한 뒤에만 다음 클로 생성 (앞 클로 이동 중 다음 클로가 검사 정지점에 닿으면 LineB 전체가 멈춤)
+            if (clawSpawner != null) clawSpawner.NotifyItemCleared();
+
             var assemblyBase = waitingBase.GetComponentInChildren<BaseInfo>(true);
             if (assemblyBase == null)
                 Debug.LogError($"[ProcessController] 조립 정지점의 베이스 '{waitingBase.name}'에 BaseInfo가 없습니다.", this);
@@ -141,7 +159,8 @@ public class ProcessController : MonoBehaviour
             assembly.NotifyPart2Ready(assemblyBase);
             yield return assembly.Assemble(-1f);
 
-            waitingPart = null;
+            // 조립한 클로만 비움 (다음 클로가 이미 도착해 기록됐다면 유지)
+            if (waitingPart == clawGo) waitingPart = null;
             waitingBase = null;
 
             // 7) 결과 확인
@@ -159,39 +178,45 @@ public class ProcessController : MonoBehaviour
     }
 
     // [좌표 디버그] 검사/조립 픽업 좌표 비교용 로그 (확인 후 제거)
-    private void LogPickPositions(string tag)
-    {
-        Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
-        Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
-        Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
-        Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
-        Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
-    }
+    // private void LogPickPositions(string tag)
+    // {
+    //     Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
+    //     Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
+    //     Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
+    //     Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
+    //     Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
+    // }
 
     // 클로가 검사를 통과할 때까지 반복한다.
     // 통과: 스토퍼 재개는 InspectSequence 안에서 처리되고, 클로 생성 트리거를 보낸다.
     // 불량: InspectSequence 안에서 로봇팔이 폐기 후 스토퍼를 재개하고, 다음 클로가 올 때까지 대기한다.
     private IEnumerator InspectClawUntilPass()
     {
+        clawInspectPassed = false;
         while (true)
         {
             var clawItem = waitingPart.GetComponent<Item>();
             if (station1 == null || clawItem == null)
             {
                 Debug.LogError("[ProcessController] 클로 검사를 할 수 없습니다 (station1 또는 클로의 Item이 없음).", this);
-                yield break;
+                yield break;   // clawInspectPassed는 false 유지 → RunCycle에서 알람
             }
 
             LogPickPositions("검사");
-            yield return station1.InspectSequence(clawItem);
+            // 스포너가 정한 Item.itemType을 PartInfo.defectType에 반영 (develop의 InspectStation은 PartInfo 기준으로 판정)
+            var clawInfo = waitingPart.GetComponent<PartInfo>();
+            if (clawInfo != null)
+                clawInfo.defectType = clawItem.itemType == ItemType.Defective ? DefectType.PartLoss : DefectType.None;
+            yield return station1.InspectSequence(waitingPart.transform, clawInfo);
 
             if (station1.LastResult != InspectResult.Fail)
             {
-                if (clawSpawner != null) clawSpawner.NotifyItemCleared();
+                clawInspectPassed = true;   // 다음 클로 생성은 이 클로가 조립 정지점에 도착한 뒤 (RunCycle)
                 yield break;
             }
 
-            // 불량 클로: 폐기 완료 → 다음 클로 생성 후 도착을 기다림
+            // 불량 클로: 폐기 완료 → LineB 재가동(정지 상태면 스포너가 다음 클로를 생성하지 않음) 후 다음 클로 생성 → 도착을 기다림
+            conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineB, null);
             if (clawSpawner != null) clawSpawner.NotifyItemCleared();
             waitingPart = null;
             yield return new WaitUntil(() =>

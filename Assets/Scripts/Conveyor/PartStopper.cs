@@ -215,7 +215,7 @@ public class PartStopper : MonoBehaviour
     {
         StopAllCoroutines();
         stopperMoving = false;
-        StopperUp = false;
+        isStopperUp = false;
         if (stopper != null)
             stopper.position = new Vector3(stopper.position.x, stopperDownY, stopper.position.z);
     }
