@@ -12,6 +12,9 @@ public class InspectStation : MonoBehaviour
     public PartStopper stopper;
     public ArmIK ik;
 
+    [Tooltip("true면 트리거 진입 시 자동으로 검사를 시작합니다. ProcessController가 직접 호출하는 경우 false로 둡니다.")]
+    public bool autoStartOnTrigger = false;
+
     [Header("검사 자세 좌표")]
     public Transform inspectPose;
 
@@ -54,7 +57,7 @@ public class InspectStation : MonoBehaviour
     //부품 검사지점 도착 감지
     public void OnTriggerEnter(Collider other)
     { 
-        if(isInspecting) return;
+        if (!autoStartOnTrigger || isInspecting) return;
         StartCoroutine(InspectSequence());
     }
 
