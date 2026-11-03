@@ -273,6 +273,9 @@ public class PusherController : MonoBehaviour
             Vector3.zero,
             destinationStartWaypointIndex);
 
+        // 불량품이 Reject 컨베이어로 이동을 시작할 때 대시보드 카운터를 갱신합니다.
+        ProcessCounters.Add(CounterType.Defective);
+
         // 경로 설정 후 이동 스크립트를 켜고 Reject 라인을 시작합니다.
         mover.enabled = true;
         conveyorManager.RunLine(destinationLineId);
