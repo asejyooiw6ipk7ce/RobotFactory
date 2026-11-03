@@ -15,9 +15,15 @@ public class ProcessController : MonoBehaviour
     [SerializeField] private ItemSpawner baseSpawner;       // LineA 베이스 생성기
     [SerializeField] private ItemSpawner clawSpawner;       // LineB 클로 생성기
 
-    [Header("완제품 배출 설정")]
-    [Tooltip("체크 시 카메라3 각도 불량 판정을 받은 완제품도 LineC로 이송 배출합니다. (체크 해제 시 알람 정지)")]
-    [SerializeField] private bool passDefectiveToLineC = false;
+    [Header("조립 성공률 통계")]
+    [Tooltip("총 완제품 조립/검사 수")]
+    [SerializeField] private int totalAssembledCount = 0;
+    [Tooltip("조립 성공(양품) 수")]
+    [SerializeField] private int successCount = 0;
+    [Tooltip("결합 각도 불량 수")]
+    [SerializeField] private int failCount = 0;
+    [Tooltip("조립 성공률 (%)")]
+    [SerializeField] private float successRate = 0f;
 
     public ProcessState State { get; private set; } = ProcessState.Stopped;
     public float SimTime { get; private set; }
@@ -88,6 +94,13 @@ public class ProcessController : MonoBehaviour
         // 스포너 초기화: 남은 아이템 제거 + 생성 상태 복구 (안 하면 readyToSpawn이 false로 남아 재시작 후 생성이 안 됨)
         if (baseSpawner != null) baseSpawner.ClearSpawned();
         if (clawSpawner != null) clawSpawner.ClearSpawned();
+
+        // 조립 성공률 통계 초기화
+        totalAssembledCount = 0;
+        successCount = 0;
+        failCount = 0;
+        successRate = 0f;
+
         SimTime = 0f;
         State = ProcessState.Stopped;
     }
@@ -241,15 +254,22 @@ public class ProcessController : MonoBehaviour
                 isProductPass = (camera3.LastResult.Value == InspectResult.Pass);
             }
 
-            if (!isProductPass && !passDefectiveToLineC)
+            // [Commit 3] 조립 성공률 누적
+            totalAssembledCount++;
+            if (isProductPass) successCount++;
+            else failCount++;
+            successRate = totalAssembledCount > 0 ? (float)successCount / totalAssembledCount * 100f : 0f;
+
+            if (isProductPass)
             {
-                Debug.LogWarning("[ProcessController] 스테이션3 완제품 조립 불량(각도 오차 초과) 판정. 공정을 알람 상태로 전환합니다.", this);
-                State = ProcessState.Alarm;
-                conveyors.StopAll();
-                continue;
+                Debug.Log($"[ProcessController] ⭐ [조립 성공률] {successCount}/{totalAssembledCount}회 ({successRate:F1}%) | 완제품 양품 판정. 출하 라인(Line C)으로 이송합니다.", this);
+            }
+            else
+            {
+                Debug.LogWarning($"[ProcessController] ⭐ [조립 성공률] {successCount}/{totalAssembledCount}회 ({successRate:F1}%) | 완제품 결합 각도 불량(AngleError) 감지. Line C 푸셔 배출을 위해 무조건 이송을 진행합니다.", this);
             }
 
-            // 8) 라인 가동 및 완제품 Line C 이송
+            // 8) 라인 가동 및 완제품 Line C 이송 (양품/불량 불문 무조건 이송)
             // 8-1) Line B(클로 공급 라인) 스토퍼 해제 및 라인 재가동
             conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineB, partMover);
 
@@ -263,7 +283,10 @@ public class ProcessController : MonoBehaviour
             conveyors.LowerStoppers(ConveyorLineId.LineC);
             conveyors.RunLine(ConveyorLineId.LineC);
 
-            // 8-3) Line A(베이스 공급 라인) 재가동: 다음 베이스가 조립 정지점으로 진입할 수 있도록 재개
+            // 8-3) 완제품이 Station 2 조립 구역을 안전하게 벗어날 때까지 대기
+            yield return new WaitForSeconds(1.5f);
+
+            // 8-4) Line A(베이스 공급 라인) 재가동: 다음 베이스가 조립 정지점으로 진입할 수 있도록 재개
             conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineA, null);
         }
     }
