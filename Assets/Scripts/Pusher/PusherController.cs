@@ -46,6 +46,9 @@ public class PusherController : MonoBehaviour
     private Rigidbody pusherRigidbody;
     private bool isBusy;
 
+    // 불량품을 밀어내 Reject 라인으로 넘긴 뒤 발행 (ProcessController가 베이스 생성 트리거로 사용)
+    public event System.Action<GameObject> ItemPushed;
+
     private void Awake()
     {
         if (pusherHead == null)
@@ -281,6 +284,8 @@ public class PusherController : MonoBehaviour
         conveyorManager.ReleaseItemAndRunLine(
             sourceLineId,
             mover);
+
+        ItemPushed?.Invoke(arrivedItem);
 
         isBusy = false;
     }

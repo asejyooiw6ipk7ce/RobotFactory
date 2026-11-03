@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ItemSpawner : MonoBehaviour
@@ -37,6 +38,17 @@ public class ItemSpawner : MonoBehaviour
     // 지금까지 생성한 아이템 수입니다.
     private int currentSpawnCount;
 
+    // 이전 아이템 처리가 끝나면 true가 되어 다음 아이템을 1개 생성한다
+    private bool readyToSpawn = true;
+
+    // ProcessController sets this. When false, no new item is created (line still runs)
+    public bool AllowSpawn { get; set; } = true;
+
+    public ConveyorLineId LineId => lineId;
+
+    // Items spawned by this spawner (so Reset can remove them)
+    private readonly List<GameObject> spawnedItems = new List<GameObject>();
+
     private void Start()
     {
         if (itemPrefab == null)
@@ -70,11 +82,14 @@ public class ItemSpawner : MonoBehaviour
     {
         while (currentSpawnCount < maxCount)
         {
-            // 라인이 실제 운전 중일 때만 아이템을 생성합니다.
-            if (conveyorManager.IsLineRunning(lineId))
+            // 지정한 라인이 운전 중일 때만 생성합니다.
+            if (readyToSpawn && conveyorManager.IsLineRunning(lineId) && AllowSpawn)
             {
                 if (SpawnItem())
+                {
                     currentSpawnCount++;
+                    readyToSpawn = false;
+                }
 
                 yield return new WaitForSeconds(spawnInterval);
             }
@@ -120,6 +135,8 @@ public class ItemSpawner : MonoBehaviour
         itemRigidbody.WakeUp();
 
         // 프리팹에 이동기가 없으면 추가합니다.
+        spawnedItems.Add(newItem);
+
         ConveyorItemMover mover =
             newItem.GetComponent<ConveyorItemMover>();
 
@@ -150,5 +167,28 @@ public class ItemSpawner : MonoBehaviour
         }
 
         return true;
+    }
+
+    // ProcessController가 이전 아이템 처리(통과 또는 폐기) 완료 시 호출
+    public void NotifyItemCleared()
+    {
+        readyToSpawn = true;
+    }
+
+    // Reset: remove spawned items, clear the count, and restart spawning
+    public void ClearSpawned()
+    {
+        StopAllCoroutines();
+
+        foreach (GameObject go in spawnedItems)
+        {
+            if (go != null) Destroy(go);
+        }
+        spawnedItems.Clear();
+        currentSpawnCount = 0;
+        readyToSpawn = true;
+
+        if (itemPrefab != null && spawnPoint != null && conveyorManager != null)
+            StartCoroutine(SpawnRoutine());
     }
 }

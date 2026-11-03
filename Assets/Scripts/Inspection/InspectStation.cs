@@ -22,6 +22,12 @@ public class InspectStation : MonoBehaviour
     public float inspectHeightOffset = 0.15f; // inspectPose 기준 상공 안전 대기 높이 (부품 충돌 방지)
 
     private bool isInspecting = false;
+
+    [Tooltip("true면 트리거 진입 시 자동으로 검사를 시작합니다. ProcessController가 직접 호출하는 경우 false로 둡니다.")]
+    public bool autoStartOnTrigger = false;
+
+    // 마지막 검사 결과 (ProcessController가 폐기 여부 확인용으로 사용)
+    public InspectResult LastResult { get; private set; }
     public int robotId = 1;
 
     [Header("상태 대시보드 반영")]
@@ -61,7 +67,7 @@ public class InspectStation : MonoBehaviour
     // 부품 검사지점 도착 감지
     public void OnTriggerEnter(Collider other)
     {
-        if (isInspecting || failed) return;
+        if (!autoStartOnTrigger || isInspecting || failed) return;
 
         // 도착한 부품 감지 (로봇 본체 제외)
         if (ik != null && other.transform.root == ik.transform.root) return;
@@ -127,6 +133,7 @@ public class InspectStation : MonoBehaviour
         }
 
         InspectResult finalResult = isFail ? InspectResult.Fail : InspectResult.Pass;
+        LastResult = finalResult;
 
         // 5. 검사 결과가 Fail이면 폐기 시퀀스 실행
         if (finalResult == InspectResult.Fail && reject != null)

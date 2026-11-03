@@ -209,4 +209,14 @@ public class PartStopper : MonoBehaviour
         cachedUpY = currentY;
         Debug.Log($"[PartStopper] 현재 Y({currentY:F3})를 '올라간 위치(Up)'로 저장했습니다.");
     }
+
+    // Reset: stop any movement and put the stopper back in the down position
+    public void ForceDown()
+    {
+        StopAllCoroutines();
+        stopperMoving = false;
+        isStopperUp = false;
+        if (stopper != null)
+            stopper.position = new Vector3(stopper.position.x, stopperDownY, stopper.position.z);
+    }
 }
