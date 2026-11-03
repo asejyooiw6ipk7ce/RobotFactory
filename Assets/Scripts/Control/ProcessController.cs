@@ -178,14 +178,14 @@ public class ProcessController : MonoBehaviour
     }
 
     // [좌표 디버그] 검사/조립 픽업 좌표 비교용 로그 (확인 후 제거)
-    // private void LogPickPositions(string tag)
-    // {
-    //     Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
-    //     Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
-    //     Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
-    //     Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
-    //     Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
-    // }
+    private void LogPickPositions(string tag)
+    {
+        Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
+        Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
+        Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
+        Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
+        Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
+    }
 
     // 클로가 검사를 통과할 때까지 반복한다.
     // 통과: 스토퍼 재개는 InspectSequence 안에서 처리되고, 클로 생성 트리거를 보낸다.
