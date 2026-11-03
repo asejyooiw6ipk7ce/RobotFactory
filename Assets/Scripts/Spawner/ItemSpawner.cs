@@ -4,41 +4,45 @@ using UnityEngine;
 
 public class ItemSpawner : MonoBehaviour
 {
-    [Header("½ºÆùÇÒ ¾ÆÀÌÅÛ ¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
 
-    // »ý¼ºÇÒ ¾ÆÀÌÅÛ ÇÁ¸®ÆÕÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     [SerializeField] private GameObject itemPrefab;
 
-    // ¾ÆÀÌÅÛÀÌ »ý¼ºµÉ À§Ä¡ÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ô´Ï´ï¿½.
     [SerializeField] private Transform spawnPoint;
 
-    // »ý¼ºÇÒ ÃÖ´ë ¾ÆÀÌÅÛ ¼öÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     [SerializeField] private int maxCount = 20;
 
-    // ¾ÆÀÌÅÛ »ý¼º °£°ÝÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     [SerializeField] private float spawnInterval = 2f;
 
-    [Header("¾ÆÀÌÅÛ ¹æÇâ ¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
 
-    // ½ºÆù È¸Àü°ú °æ·Î ¹æÇâ¿¡ Àû¿ëÇÒ ¿ÀÇÁ¼ÂÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¿¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     [SerializeField] private Vector3 rotationOffset;
 
-    // ÁöÁ¤ÇÏ¸é ÀÌ TransformÀÇ forward ¹æÇâÀ» ÀÌµ¿ ¹æÇâÀ¸·Î »ç¿ëÇÕ´Ï´Ù.
-    // ºñ¿öµÎ¸é ItemSpawnerÀÇ forward ¹æÇâÀ» »ç¿ëÇÕ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ ï¿½ï¿½ Transformï¿½ï¿½ forward ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+    // ï¿½ï¿½ï¿½ï¿½Î¸ï¿½ ItemSpawnerï¿½ï¿½ forward ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     [SerializeField] private Transform moveDirectionPoint;
 
-    [Header("Áß¾Ó ÄÁº£ÀÌ¾î ¸Å´ÏÀú ¼³Á¤")]
+    [Header("ï¿½ß¾ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¾ï¿½ ï¿½Å´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
 
-    // ¾À¿¡ ¹èÄ¡ÇÑ ConveyorManagerÀÔ´Ï´Ù.
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ConveyorManagerï¿½Ô´Ï´ï¿½.
     [SerializeField] private ConveyorManager conveyorManager;
 
-    // ÀÌ ½ºÆ÷³Ê°¡ ¾ÆÀÌÅÛÀ» ÅõÀÔÇÒ ¶óÀÎÀÔ´Ï´Ù.
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ê°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     [SerializeField] private ConveyorLineId lineId;
 
-    // Áö±Ý±îÁö »ý¼ºÇÑ ¾ÆÀÌÅÛ ¼öÀÔ´Ï´Ù.
+    // ï¿½Ò·ï¿½Ç°ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Ô´Ï´ï¿½. 0.5ï¿½ï¿½ 50%ï¿½Ô´Ï´ï¿½.
+    [Header("ï¿½Ò·ï¿½Ç° ï¿½ï¿½ï¿½ï¿½")]
+    [SerializeField, Range(0f, 1f)] private float defectiveProbability = 0.5f;
+
+    // ï¿½ï¿½ï¿½Ý±ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ô´Ï´ï¿½.
     private int currentSpawnCount;
 
-    // ÀÌÀü ¾ÆÀÌÅÛ Ã³¸®°¡ ³¡³ª¸é true°¡ µÇ¾î ´ÙÀ½ ¾ÆÀÌÅÛÀ» 1°³ »ý¼ºÇÑ´Ù
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ trueï¿½ï¿½ ï¿½Ç¾ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 1ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½
     private bool readyToSpawn = true;
 
     // ProcessController sets this. When false, no new item is created (line still runs)
@@ -54,7 +58,7 @@ public class ItemSpawner : MonoBehaviour
         if (itemPrefab == null)
         {
             Debug.LogError(
-                "ItemSpawner: Item PrefabÀÌ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                "ItemSpawner: Item Prefabï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò½ï¿½ï¿½Ï´ï¿½.",
                 this);
             return;
         }
@@ -62,7 +66,7 @@ public class ItemSpawner : MonoBehaviour
         if (spawnPoint == null)
         {
             Debug.LogError(
-                "ItemSpawner: Spawn Point°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                "ItemSpawner: Spawn Pointï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò½ï¿½ï¿½Ï´ï¿½.",
                 this);
             return;
         }
@@ -70,7 +74,7 @@ public class ItemSpawner : MonoBehaviour
         if (conveyorManager == null)
         {
             Debug.LogError(
-                "ItemSpawner: ConveyorManager°¡ ¿¬°áµÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                "ItemSpawner: ConveyorManagerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò½ï¿½ï¿½Ï´ï¿½.",
                 this);
             return;
         }
@@ -82,7 +86,7 @@ public class ItemSpawner : MonoBehaviour
     {
         while (currentSpawnCount < maxCount)
         {
-            // ÁöÁ¤ÇÑ ¶óÀÎÀÌ ¿îÀü ÁßÀÏ ¶§¸¸ »ý¼ºÇÕ´Ï´Ù.
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
             if (readyToSpawn && conveyorManager.IsLineRunning(lineId) && AllowSpawn)
             {
                 if (SpawnItem())
@@ -95,7 +99,7 @@ public class ItemSpawner : MonoBehaviour
             }
             else
             {
-                // ¶óÀÎÀÌ Á¤Áö ÁßÀÌ¸é ½ºÆùµµ ±â´Ù¸³´Ï´Ù.
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ù¸ï¿½ï¿½Ï´ï¿½.
                 yield return new WaitForSeconds(0.5f);
             }
         }
@@ -114,27 +118,26 @@ public class ItemSpawner : MonoBehaviour
             spawnPoint.position,
             spawnRotation);
 
-        // ¹°¸® ÀÌµ¿À» À§ÇØ Rigidbody¸¦ ÇÁ¸®ÆÕ ·çÆ®¿¡¼­ °¡Á®¿É´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Rigidbodyï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½É´Ï´ï¿½.
         Rigidbody itemRigidbody =
             newItem.GetComponent<Rigidbody>();
 
         if (itemRigidbody == null)
         {
             Debug.LogError(
-                "ItemSpawner: ¾ÆÀÌÅÛ ÇÁ¸®ÆÕ ·çÆ®¿¡ Rigidbody°¡ ÇÊ¿äÇÕ´Ï´Ù.",
+                "ItemSpawner: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ Rigidbodyï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½Õ´Ï´ï¿½.",
                 newItem);
 
             Destroy(newItem);
             return false;
         }
 
-        // ÇÁ¸®ÆÕ¿¡ ÀúÀåµÈ Áß·Â/µ¿Àû ¼³Á¤À» À¯ÁöÇÕ´Ï´Ù.
-        // »ý¼º Á÷ÈÄ ±âÁ¸ ¼Óµµ°¡ ³²¾Æ ÀÖÁö ¾Êµµ·Ï ÃÊ±â ¼Óµµ¸¸ Áö¿ó´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ï¿½Õ´Ï´ï¿½.
         itemRigidbody.linearVelocity = Vector3.zero;
         itemRigidbody.angularVelocity = Vector3.zero;
         itemRigidbody.WakeUp();
 
-        // ÇÁ¸®ÆÕ¿¡ ÀÌµ¿±â°¡ ¾øÀ¸¸é Ãß°¡ÇÕ´Ï´Ù.
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Õ¿ï¿½ ï¿½Ìµï¿½ï¿½â°¡ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ï¿½Õ´Ï´ï¿½.
         spawnedItems.Add(newItem);
 
         ConveyorItemMover mover =
@@ -153,26 +156,48 @@ public class ItemSpawner : MonoBehaviour
             direction,
             rotationOffset);
 
-        // Item ÄÄÆ÷³ÍÆ®°¡ ÀÖÀ¸¸é Á¤»ó/ºÒ·®À» ¹«ÀÛÀ§·Î ÁöÁ¤ÇÕ´Ï´Ù.
+        // ï¿½Ò·ï¿½ ï¿½ï¿½ï¿½Î¸ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
+        bool isDefective = Random.value < defectiveProbability;
+
+        // ï¿½ï¿½ï¿½ï¿½ Pusherï¿½ï¿½ ItemTypeï¿½ï¿½ È®ï¿½ï¿½ï¿½Ï¹Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         Item item = newItem.GetComponent<Item>();
 
         if (item != null)
         {
-            ItemType randomType = Random.Range(0, 2) == 0 ? ItemType.Normal : ItemType.Defective;
-            item.itemType = randomType;
-            item.shouldBeGrabbed = randomType == ItemType.Normal;
+            item.itemType = isDefective
+                ? ItemType.Defective
+                : ItemType.Normal;
 
-            var partLoss = newItem.GetComponent<PartLoss>();
+            item.shouldBeGrabbed = !isDefective;
+        }
+        else
+        {
+            Debug.LogWarning(
+                "ItemSpawner: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½ Item ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.",
+                newItem);
+        }
+
+        // ï¿½Ò·ï¿½Ç°ï¿½Ì¸ï¿½ PartLossï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç°ï¿½ï¿½ ï¿½ï¿½È°ï¿½ï¿½È­ï¿½Õ´Ï´ï¿½.
+        if (isDefective)
+        {
+            PartLoss partLoss = newItem.GetComponent<PartLoss>();
+
             if (partLoss != null)
             {
-                partLoss.ApplyDefect(randomType == ItemType.Defective ? DefectType.PartLoss : DefectType.None);
+                partLoss.ApplyDefect(DefectType.PartLoss);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "ItemSpawner: ï¿½Ò·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îµï¿½ PartLoss ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ï¿½ß½ï¿½ï¿½Ï´ï¿½.",
+                    newItem);
             }
         }
 
         return true;
     }
 
-    // ProcessController°¡ ÀÌÀü ¾ÆÀÌÅÛ Ã³¸®(Åë°ú ¶Ç´Â Æó±â) ¿Ï·á ½Ã È£Ãâ
+    // ProcessControllerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½(ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½) ï¿½Ï·ï¿½ ï¿½ï¿½ È£ï¿½ï¿½
     public void NotifyItemCleared()
     {
         readyToSpawn = true;
