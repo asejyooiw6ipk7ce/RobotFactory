@@ -34,6 +34,9 @@ public class ProcessController : MonoBehaviour
     private Coroutine cycle;
     private bool clawInspectPassed;   // 이번 사이클에서 클로가 검사를 '통과'했는지 (아니면 조립 금지)
 
+    // 완제품 퇴출(RejectBox or ShippingBox 파괴) 완료 신호 (단일 부품 리스폰 정책용)
+    private bool productClearedSignal;
+
     private void Awake()
     {
         if (assembly != null)
@@ -48,12 +51,20 @@ public class ProcessController : MonoBehaviour
     {
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint += OnArrived;
         if (basePusher != null) basePusher.ItemPushed += OnBaseDisposed;
+        RejectController.OnProductCleared += HandleProductCleared;
     }
 
     private void OnDisable()
     {
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint -= OnArrived;
         if (basePusher != null) basePusher.ItemPushed -= OnBaseDisposed;
+        RejectController.OnProductCleared -= HandleProductCleared;
+    }
+
+    private void HandleProductCleared(CounterType counter)
+    {
+        Debug.Log($"[ProcessController] 🏁 완제품 상자 도달 및 파괴 확인(타입: {counter}). 다음 부품 스폰 신호 수신.", this);
+        productClearedSignal = true;
     }
 
     private void Update()
@@ -87,6 +98,7 @@ public class ProcessController : MonoBehaviour
         cycle = null;
         waitingPart = null;
         waitingBase = null;
+        productClearedSignal = false;
         conveyors.ResumeAll();     // 일시정지 플래그 해제
         conveyors.StopAll();
         conveyors.RaiseStoppers(ConveyorLineId.LineC);
@@ -149,11 +161,9 @@ public class ProcessController : MonoBehaviour
                 baseItem.itemType = baseOk ? ItemType.Normal : ItemType.Defective;
 
             // 3) LineA를 풀어 베이스를 이송
-            //    - 불량: 푸셔가 밀어내면 OnBaseDisposed에서 다음 베이스 생성
-            //    - 양품: 조립 정지점으로 이동했으므로 바로 다음 베이스 생성
+            //    - 불량 베이스: 푸셔가 밀어내면 OnBaseDisposed에서 새 베이스 생성
+            //    - 양품 베이스: 단일 부품 정책에 따라 완제품 최종 퇴출 시까지 새 베이스 스폰 대기
             conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineA, baseMover);
-            if (baseOk && baseSpawner != null)
-                baseSpawner.NotifyItemCleared();
             if (!baseOk)
                 continue;
 
@@ -203,9 +213,6 @@ public class ProcessController : MonoBehaviour
                 Debug.LogWarning("[ProcessController] [5-1단계] Line B 정지점(Stop Waypoint Indices)이 1개뿐입니다. 클로가 조립 로봇팔 위치로 이동하려면 ConveyorManager의 Line B에 2차 정지점(로봇팔2 앞 인덱스)을 등록해야 합니다.", this);
             }
 
-            // 이 클로가 조립 위치에 정렬된 뒤에만 다음 클로 생성
-            if (clawSpawner != null) clawSpawner.NotifyItemCleared();
-
             var assemblyBase = waitingBase.GetComponentInChildren<BaseInfo>(true);
             if (assemblyBase == null)
                 Debug.LogError($"[ProcessController] 조립 정지점의 베이스 '{waitingBase.name}'에 BaseInfo가 없습니다.", this);
@@ -254,7 +261,7 @@ public class ProcessController : MonoBehaviour
                 isProductPass = (camera3.LastResult.Value == InspectResult.Pass);
             }
 
-            // [Commit 3] 조립 성공률 누적
+            // [Commit 3] 조립 성공률 누적 (과제 6.8 요구사항)
             totalAssembledCount++;
             if (isProductPass) successCount++;
             else failCount++;
@@ -283,10 +290,22 @@ public class ProcessController : MonoBehaviour
             conveyors.LowerStoppers(ConveyorLineId.LineC);
             conveyors.RunLine(ConveyorLineId.LineC);
 
-            // 8-3) 완제품이 Station 2 조립 구역을 안전하게 벗어날 때까지 대기
-            yield return new WaitForSeconds(1.5f);
+            // 8-3) [Commit 4] 단일 부품 정책: 완제품이 Line C를 거쳐 최종 상자(RejectBox 또는 ShippingBox)에 도달해 파괴될 때까지 대기
+            productClearedSignal = false;
+            Debug.Log("[ProcessController] [8-3단계] 완제품이 Line C를 거쳐 최종 상자(RejectBox/ShippingBox)에 퇴출될 때까지 대기 중...", this);
 
-            // 8-4) Line A(베이스 공급 라인) 재가동: 다음 베이스가 조립 정지점으로 진입할 수 있도록 재개
+            yield return new WaitUntil(() => State != ProcessState.Running || productClearedSignal);
+
+            if (State != ProcessState.Running)
+                continue;
+
+            Debug.Log("[ProcessController] [8-3단계 완료] 완제품 퇴출 완료 확인! 다음 사이클 부품 스폰을 시작합니다.", this);
+
+            // 8-4) 완제품이 완전히 사라진 후에만 다음 사이클 베이스와 클로 스폰 허용
+            if (baseSpawner != null) baseSpawner.NotifyItemCleared();
+            if (clawSpawner != null) clawSpawner.NotifyItemCleared();
+
+            // 8-5) Line A(베이스 공급 라인) 재가동: 새 베이스가 조립 정지점으로 진입할 수 있도록 재개
             conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineA, null);
         }
     }
