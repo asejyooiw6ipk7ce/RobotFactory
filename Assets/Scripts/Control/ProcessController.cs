@@ -13,6 +13,12 @@ public class ProcessController : MonoBehaviour
     [SerializeField] private ItemSpawner baseSpawner;       // LineA 베이스 생성기
     [SerializeField] private ItemSpawner clawSpawner;       // LineB 클로 생성기
 
+    [Header("LineA 정지 웨이포인트")]
+    [Tooltip("베이스 비전 검사 위치의 LineA 정지 웨이포인트 인덱스")]
+    [SerializeField] private int baseInspectionWaypointIndex = 0;
+    [Tooltip("베이스 조립 위치의 LineA 정지 웨이포인트 인덱스")]
+    [SerializeField] private int baseAssemblyWaypointIndex = 1;
+
     [Header("조립 성공률 통계")]
     [Tooltip("총 완제품 조립/검사 수")]
     [SerializeField] private int totalAssembledCount = 0;
@@ -28,7 +34,8 @@ public class ProcessController : MonoBehaviour
 
     // 정지점에 도착해 대기 중인 부품
     private GameObject waitingPart;   // LineB (클로)
-    private GameObject waitingBase;   // LineA (베이스)
+    private GameObject waitingBaseAtInspection;
+    private GameObject waitingBaseAtAssembly;
     private Coroutine cycle;
     private bool clawInspectPassed;   // 이번 사이클에서 클로가 검사를 '통과'했는지 (아니면 조립 금지)
 
@@ -48,21 +55,34 @@ public class ProcessController : MonoBehaviour
     private void OnEnable()
     {
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint += OnArrived;
-        if (basePusher != null) basePusher.ItemPushed += OnBaseDisposed;
+        if (basePusher != null) basePusher.ItemPushed += OnBasePushedToReject;
         RejectController.OnProductCleared += HandleProductCleared;
     }
 
     private void OnDisable()
     {
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint -= OnArrived;
-        if (basePusher != null) basePusher.ItemPushed -= OnBaseDisposed;
+        if (basePusher != null) basePusher.ItemPushed -= OnBasePushedToReject;
         RejectController.OnProductCleared -= HandleProductCleared;
     }
 
     private void HandleProductCleared(CounterType counter)
     {
-        Debug.Log($"[ProcessController] 🏁 완제품 상자 도달 및 파괴 확인(타입: {counter}). 다음 부품 스폰 신호 수신.", this);
-        productClearedSignal = true;
+        Debug.Log($"[ProcessController] 상자 도달 및 파괴 확인(타입: {counter}).", this);
+
+        // 불량 베이스는 푸셔가 Reject 라인으로 옮긴 직후가 아니라,
+        // RejectController가 상자에서 실제 파괴한 뒤 다음 베이스를 허용합니다.
+        if (counter == CounterType.DiscardedBase)
+        {
+            if (baseSpawner != null)
+                baseSpawner.NotifyItemCleared();
+
+            return;
+        }
+
+        // 최종 제품의 출하/불량 퇴출만 현재 조립 사이클 완료로 처리합니다.
+        if (counter == CounterType.Shipped || counter == CounterType.Defective)
+            productClearedSignal = true;
     }
 
     private void Update()
@@ -97,7 +117,8 @@ public class ProcessController : MonoBehaviour
         if (cycle != null) StopCoroutine(cycle);
         cycle = null;
         waitingPart = null;
-        waitingBase = null;
+        waitingBaseAtInspection = null;
+        waitingBaseAtAssembly = null;
         productClearedSignal = false;
         conveyors.ResumeAll();     // 일시정지 플래그 해제
         conveyors.StopAll();
@@ -124,13 +145,33 @@ public class ProcessController : MonoBehaviour
     {
         Debug.Log($"[ProcessController] 정지점 도착 수신: 라인={line}, 웨이포인트={waypointIndex}, 아이템='{item?.name}'", this);
         if (line == ConveyorLineId.LineB) waitingPart = item;
-        else if (line == ConveyorLineId.LineA) waitingBase = item;
+        else if (line == ConveyorLineId.LineA)
+        {
+            if (waypointIndex == baseInspectionWaypointIndex)
+            {
+                waitingBaseAtInspection = item;
+                Debug.Log($"[ProcessController] 베이스 검사 정지점 도착 저장: '{item?.name}'", this);
+            }
+            else if (waypointIndex == baseAssemblyWaypointIndex)
+            {
+                waitingBaseAtAssembly = item;
+                Debug.Log($"[ProcessController] 베이스 조립 정지점 도착 저장: '{item?.name}'", this);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    $"[ProcessController] 처리 대상으로 설정되지 않은 LineA 웨이포인트 도착을 무시합니다: {waypointIndex}",
+                    this);
+            }
+        }
     }
 
-    // 푸셔가 불량 베이스를 밀어내 불량 컨테이너로 보낸 뒤 호출 → 다음 베이스 생성
-    private void OnBaseDisposed(GameObject item)
+    // 푸셔 이송 완료는 RejectBox 파괴 완료가 아니므로 여기서는 다음 스폰을 허용하지 않습니다.
+    private void OnBasePushedToReject(GameObject item)
     {
-        if (baseSpawner != null) baseSpawner.NotifyItemCleared();
+        Debug.Log(
+            $"[ProcessController] 베이스 '{item?.name}' 푸셔 이송 완료. RejectBox 파괴 완료 이벤트를 기다립니다.",
+            this);
     }
 
     private IEnumerator RunCycle()
@@ -140,31 +181,32 @@ public class ProcessController : MonoBehaviour
             // 1) 베이스가 검사 정지점에 도착할 때까지 대기 (일시정지·알람 중에는 진행 안 함)
             Debug.Log("[ProcessController] [1단계] Line A 베이스 도착 대기 중...", this);
             yield return new WaitUntil(() =>
-                State == ProcessState.Running && waitingBase != null);
-            Debug.Log($"[ProcessController] [1단계 완료] 베이스 '{waitingBase.name}' 도착 감지. 카메라2 검사 진행.", this);
+                State == ProcessState.Running && waitingBaseAtInspection != null);
 
-            var robotBase = waitingBase.GetComponentInChildren<BaseInfo>(true);
+            GameObject inspectionBaseObject = waitingBaseAtInspection;
+            waitingBaseAtInspection = null;
+            Debug.Log($"[ProcessController] [1단계 완료] 베이스 '{inspectionBaseObject.name}' 도착 감지. 카메라2 검사 진행.", this);
+
+            var robotBase = inspectionBaseObject.GetComponentInChildren<BaseInfo>(true);
             if (robotBase == null)
             {
-                Debug.LogError($"[ProcessController] 정지점의 베이스 '{waitingBase.name}'에 BaseInfo가 없어 검사를 중단하고 알람으로 전환합니다.", this);
+                Debug.LogError($"[ProcessController] 정지점의 베이스 '{inspectionBaseObject.name}'에 BaseInfo가 없어 검사를 중단하고 알람으로 전환합니다.", this);
                 // State = ProcessState.Alarm;
                 ChangeState(ProcessState.Alarm, "베이스 정보(BaseInfo)가 없어 공정을 멈췄습니다");
                 conveyors.StopAll();
                 continue;
             }
-              // waitingBase는 아래에서 null이 되므로 먼저 잡아 둠
-            var baseItem = waitingBase.GetComponent<Item>();
+            var baseItem = inspectionBaseObject.GetComponent<Item>();
 
             // 2) 부품2(베이스) 비전 검사
             bool baseOk = camera2.InspectPart2(robotBase);
-            waitingBase = null;   // 검사 정지점 도착 처리 완료 (다음 도착은 조립 정지점)
 
             // 검사 결과를 Item에 반영해야 푸셔(Item.itemType 기준)가 올바르게 판단함
             if (baseItem != null)
                 baseItem.itemType = baseOk ? ItemType.Normal : ItemType.Defective;
 
             // 3) LineA를 풀어 베이스를 이송
-            //    - 불량 베이스: 푸셔가 밀어내면 OnBaseDisposed에서 새 베이스 생성
+            //    - 불량 베이스: RejectController가 RejectBox 파괴를 알리면 다음 베이스 생성
             //    - 양품 베이스: 단일 부품 정책에 따라 완제품 최종 퇴출 시까지 새 베이스 스폰 대기
             
             if (!baseOk)
@@ -173,8 +215,11 @@ public class ProcessController : MonoBehaviour
             // 4) 양품 베이스가 조립 정지점에 도착할 때까지 대기
             Debug.Log("[ProcessController] [4단계] 양품 베이스 조립 정지점 도착 대기 중...", this);
             yield return new WaitUntil(() =>
-                State == ProcessState.Running && waitingBase != null);
-            Debug.Log($"[ProcessController] [4단계 완료] 베이스 '{waitingBase.name}' 조립 위치 도착.", this);
+                State == ProcessState.Running && waitingBaseAtAssembly != null);
+
+            GameObject assemblyBaseObject = waitingBaseAtAssembly;
+            waitingBaseAtAssembly = null;
+            Debug.Log($"[ProcessController] [4단계 완료] 베이스 '{assemblyBaseObject.name}' 조립 위치 도착.", this);
 
             // 5) 클로가 LineB 정지점에 도착할 때까지 대기 후 클로 검사 (불량이면 폐기하고 다음 클로까지 대기)
             Debug.Log("[ProcessController] [5단계] Line B 클로 도착 대기 중...", this);
@@ -217,10 +262,10 @@ public class ProcessController : MonoBehaviour
                 Debug.LogWarning("[ProcessController] [5-1단계] Line B 정지점(Stop Waypoint Indices)이 1개뿐입니다. 클로가 조립 로봇팔 위치로 이동하려면 ConveyorManager의 Line B에 2차 정지점(로봇팔2 앞 인덱스)을 등록해야 합니다.", this);
             }
 
-            var assemblyBase = waitingBase.GetComponentInChildren<BaseInfo>(true);
+            var assemblyBase = assemblyBaseObject.GetComponentInChildren<BaseInfo>(true);
             if (assemblyBase == null)
-                Debug.LogError($"[ProcessController] 조립 정지점의 베이스 '{waitingBase.name}'에 BaseInfo가 없습니다.", this);
-            var assemblyBaseMover = waitingBase.GetComponent<ConveyorItemMover>();
+                Debug.LogError($"[ProcessController] 조립 정지점의 베이스 '{assemblyBaseObject.name}'에 BaseInfo가 없습니다.", this);
+            var assemblyBaseMover = assemblyBaseObject.GetComponent<ConveyorItemMover>();
 
             // 6) 조립 (ProcessController가 조립 완료를 직접 기다림)
             LogPickPositions("조립");
@@ -244,7 +289,6 @@ public class ProcessController : MonoBehaviour
 
             // 조립한 클로만 비움 (다음 클로가 이미 도착해 기록됐다면 유지)
             if (waitingPart == clawGo) waitingPart = null;
-            waitingBase = null;
 
             // 7) 결과 확인
             if (!assembly.LastAssemblyOk)

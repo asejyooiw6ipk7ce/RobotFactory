@@ -178,7 +178,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1402782427}
   m_SourcePrefab: {fileID: 100100000, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
 --- !u!1 &99572373
 GameObject:
@@ -264,7 +267,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1347157081329836052, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2919070260653855085, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_Name
@@ -280,7 +283,7 @@ PrefabInstance:
       objectReference: {fileID: 1846249303}
     - target: {fileID: 2949397204198766371, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4243883089910336487, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_LocalPosition.x
@@ -736,6 +739,8 @@ MonoBehaviour:
   basePusher: {fileID: 141645630}
   baseSpawner: {fileID: 1344973346}
   clawSpawner: {fileID: 1392985084}
+  baseInspectionWaypointIndex: 0
+  baseAssemblyWaypointIndex: 1
   totalAssembledCount: 0
   successCount: 0
   failCount: 0
@@ -944,8 +949,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 17.54703, y: 1.0353727, z: 34.194626}
-  m_Center: {x: -2.0348713, y: 0.017686367, z: -9.955273}
+  m_Size: {x: 16.408226, y: 1.0353727, z: 34.194626}
+  m_Center: {x: -1.4654703, y: 0.017686367, z: -9.955273}
 --- !u!114 &815287534 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1141303382309865580, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
@@ -1487,6 +1492,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 815287531}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1223052713 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
+  m_PrefabInstance: {fileID: 1562778744}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1223052719
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1223052713}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 9.999999, y: 2.2204459e-16, z: 9.999999}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1254548766
 GameObject:
   m_ObjectHideFlags: 0
@@ -1871,6 +1902,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b381dabd473dee4caaf5b40489dae97, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemSpawner
+--- !u!1 &1402782421 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
+  m_PrefabInstance: {fileID: 53437747}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1402782427
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1402782421}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 9.999999, y: 2.2204459e-16, z: 9.999999}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1409825573
 GameObject:
   m_ObjectHideFlags: 0
@@ -2633,7 +2690,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1223052719}
   m_SourcePrefab: {fileID: 100100000, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
 --- !u!1 &1585485885
 GameObject:
@@ -3375,7 +3435,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: lines.Array.data[0].waypoints.Array.size
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: lines.Array.data[1].waypoints.Array.size
@@ -3404,7 +3464,7 @@ PrefabInstance:
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: 'lines.Array.data[0].waypoints.Array.data[2]'
       value: 
-      objectReference: {fileID: 1338928140}
+      objectReference: {fileID: 0}
     - target: {fileID: 3294509407752405621, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
       propertyPath: 'lines.Array.data[0].waypoints.Array.data[3]'
       value: 
@@ -3978,7 +4038,7 @@ MonoBehaviour:
   mountOffsetCalibratedV2: 1
   mountOffsetCalibratedV3: 1
   continuousStepTarget: 5
-  defectProbability: 0.5
+  defectProbability: 1
   defectiveAngleRange: {x: 5, y: 20}
   normalAngleRange: {x: 0, y: 1.5}
   assemblyTimeoutSeconds: 20
