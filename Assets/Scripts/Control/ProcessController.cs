@@ -152,7 +152,7 @@ public class ProcessController : MonoBehaviour
                 conveyors.StopAll();
                 continue;
             }
-            var baseMover = waitingBase.GetComponent<ConveyorItemMover>();   // waitingBase는 아래에서 null이 되므로 먼저 잡아 둠
+              // waitingBase는 아래에서 null이 되므로 먼저 잡아 둠
             var baseItem = waitingBase.GetComponent<Item>();
 
             // 2) 부품2(베이스) 비전 검사
@@ -166,7 +166,7 @@ public class ProcessController : MonoBehaviour
             // 3) LineA를 풀어 베이스를 이송
             //    - 불량 베이스: 푸셔가 밀어내면 OnBaseDisposed에서 새 베이스 생성
             //    - 양품 베이스: 단일 부품 정책에 따라 완제품 최종 퇴출 시까지 새 베이스 스폰 대기
-           // conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineA, baseMover);
+            
             if (!baseOk)
                 continue;
 
