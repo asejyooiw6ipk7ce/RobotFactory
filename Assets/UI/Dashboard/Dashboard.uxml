@@ -98,4 +98,8 @@
         </ui:VisualElement>
 
     </ui:VisualElement>
+
+    <ui:VisualElement class="card cam-panel">
+        <ui:VisualElement name="cam-tabs" class="cam-tabs" />
+    </ui:VisualElement> 
 </ui:UXML>
