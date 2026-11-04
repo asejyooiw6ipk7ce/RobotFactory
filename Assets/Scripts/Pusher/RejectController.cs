@@ -45,7 +45,7 @@ public class RejectController : MonoBehaviour
             boxCol.isTrigger = true;
             float safeX = (boxCol.size.x >= 9f) ? 8.0f : boxCol.size.x * 0.85f;
             float safeZ = (boxCol.size.z >= 9f) ? 8.0f : boxCol.size.z * 0.85f;
-            float safeHeight = 2.0f;
+            float safeHeight = 0.3f;
 
             boxCol.size = new Vector3(safeX, safeHeight, safeZ);
             boxCol.center = new Vector3(boxCol.center.x, safeHeight * 0.5f, boxCol.center.z);
