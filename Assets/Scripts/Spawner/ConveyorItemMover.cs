@@ -189,7 +189,8 @@ public class ConveyorItemMover : MonoBehaviour
                 Vector3.ProjectOnPlane(directionToTarget, Vector3.up);
 
             // 정지점은 정밀하게 감속/정지하고, 일반 경유점은 부드럽게 통과하여 오버슈트 진동을 방지합니다.
-            bool isStopPoint = conveyorManager.IsStopWaypoint(lineId, waypointIndex);
+            // (Line C 완제품 양품의 경우 스토퍼 상승 및 정지 없이 직진 통과하도록 gameObject 전달)
+            bool isStopPoint = conveyorManager.IsStopWaypoint(lineId, waypointIndex, gameObject);
             float thresholdDistance = isStopPoint ? waypointReachDistance : passWaypointDistance;
 
             if (planarDirection.magnitude > thresholdDistance)
@@ -216,7 +217,12 @@ public class ConveyorItemMover : MonoBehaviour
                 return;
             }
 
-            // 일반 경유점이면 감속 없이 즉시 다음 웨이포인트로 넘어갑니다.
+            if (!isStopPoint && conveyorManager.IsStopWaypoint(lineId, waypointIndex))
+            {
+                Debug.Log($"[ConveyorItemMover] Line C 완제품('{gameObject.name}')은 조립성공품(양품)이므로 스토퍼(WP {waypointIndex})를 정지 없이 직진 통과합니다.", this);
+            }
+
+            // 일반 경유점(또는 양품 직진 통과 지점)이면 감속 없이 즉시 다음 웨이포인트로 넘어갑니다.
             waypointIndex++;
         }
 
