@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 
 public class ProcessController : MonoBehaviour
@@ -57,6 +57,7 @@ public class ProcessController : MonoBehaviour
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint += OnArrived;
         if (basePusher != null) basePusher.ItemPushed += OnBasePushedToReject;
         RejectController.OnProductCleared += HandleProductCleared;
+        LineCRejectController.OnProductCleared += HandleProductCleared;
     }
 
     private void OnDisable()
@@ -64,6 +65,7 @@ public class ProcessController : MonoBehaviour
         if (conveyors != null) conveyors.OnItemArrivedAtStopPoint -= OnArrived;
         if (basePusher != null) basePusher.ItemPushed -= OnBasePushedToReject;
         RejectController.OnProductCleared -= HandleProductCleared;
+        LineCRejectController.OnProductCleared -= HandleProductCleared;
     }
 
     private void HandleProductCleared(CounterType counter)
@@ -208,7 +210,7 @@ public class ProcessController : MonoBehaviour
             // 3) LineA를 풀어 베이스를 이송
             //    - 불량 베이스: RejectController가 RejectBox 파괴를 알리면 다음 베이스 생성
             //    - 양품 베이스: 단일 부품 정책에 따라 완제품 최종 퇴출 시까지 새 베이스 스폰 대기
-            
+
             if (!baseOk)
                 continue;
 
