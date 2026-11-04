@@ -152,3 +152,6 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# Conveyor Works 예제 씬 조명 베이크 (100MB 초과, 프로젝트에서 미사용)
+/Assets/Conveyor Works/Scenes/FactoryExample/
