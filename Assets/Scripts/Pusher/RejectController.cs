@@ -21,7 +21,7 @@ public class RejectController : MonoBehaviour
 
         if (motoBase != null)
         {
-            ProcessCounters.Add(CounterType.Discarded);
+            ProcessCounters.Add(CounterType.DiscardedBase);
             Destroy(motoBase.gameObject);
         }
     }

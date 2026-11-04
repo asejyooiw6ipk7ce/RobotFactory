@@ -47,13 +47,16 @@ public class StatsTrackerTests
     {
         var stats = new StatusTracker(10);
 
-        stats.Increment(CounterType.Input);
-        stats.Increment(CounterType.Input);
+        stats.Increment(CounterType.InputBase);
+        stats.Increment(CounterType.InputBase);
+        stats.Increment(CounterType.InputClaw);
         stats.Increment(CounterType.Shipped);
 
-        Assert.AreEqual(2, stats.Count(CounterType.Input));
+        Assert.AreEqual(2, stats.Count(CounterType.InputBase));
+        Assert.AreEqual(2, stats.Count(CounterType.InputClaw));
         Assert.AreEqual(1, stats.Count(CounterType.Shipped));
-        Assert.AreEqual(0, stats.Count(CounterType.Discarded));
+        Assert.AreEqual(0, stats.Count(CounterType.DiscardedBase));
+        Assert.AreEqual(0, stats.Count(CounterType.DiscardedClaw));
     }
 
     [Test]

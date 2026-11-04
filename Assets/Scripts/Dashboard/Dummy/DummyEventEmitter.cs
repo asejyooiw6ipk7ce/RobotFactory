@@ -58,8 +58,8 @@ public class DummyEventEmitter : MonoBehaviour
         switch (station)
         {
             case StationId.Station1:
-                ProcessCounters.Add(CounterType.Input);  //스테이션1 투입 +1
-                if (fail) ProcessCounters.Add(CounterType.Discarded); //fail true면 스테이션1 불량 +1
+                ProcessCounters.Add(CounterType.InputClaw);  //스테이션1 투입 +1'
+                if (fail) ProcessCounters.Add(CounterType.DiscardedClaw); //fail true면 스테이션1 불량 +1
                 break;
             case StationId.Station2:
                 if (fail) ProcessCounters.Add(CounterType.Defective); //fail true면 스테이션2 불량 +1

@@ -262,7 +262,7 @@ public partial class InspectRejectSequence
         yield return new WaitForSeconds(0.5f);
 
         // 폐기 카운트 집계 및 배출 이벤트 발행
-        ProcessCounters.Add(CounterType.Discarded);
+        ProcessCounters.Add(CounterType.DiscardedClaw);
         InspectEventBus.PublishExit(new PartExitEvent(discardedPartId, ExitReason.Discarded, discardedDefect, Time.time));
 
         if (ik != null)

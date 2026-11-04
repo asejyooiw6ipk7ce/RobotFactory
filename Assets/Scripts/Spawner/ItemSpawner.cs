@@ -20,11 +20,11 @@ public class ItemSpawner : MonoBehaviour
 
     [Header("������ ���� ����")]
 
-    // ���� ȸ���� ��� ���⿡ ������ �������Դϴ�.
+    // ���� ȸ���� ���? ���⿡ ������ �������Դϴ�.
     [SerializeField] private Vector3 rotationOffset;
 
-    // �����ϸ� �� Transform�� forward ������ �̵� �������� ����մϴ�.
-    // ����θ� ItemSpawner�� forward ������ ����մϴ�.
+    // �����ϸ� �� Transform�� forward ������ �̵� �������� ����մϴ�?.
+    // ����θ�? ItemSpawner�� forward ������ ����մϴ�?.
     [SerializeField] private Transform moveDirectionPoint;
 
     [Header("�߾� �����̾� �Ŵ��� ����")]
@@ -58,7 +58,7 @@ public class ItemSpawner : MonoBehaviour
         if (itemPrefab == null)
         {
             Debug.LogError(
-                "ItemSpawner: Item Prefab�� ������� �ʾҽ��ϴ�.",
+                "ItemSpawner: Item Prefab�� �������? �ʾҽ��ϴ�.",
                 this);
             return;
         }
@@ -66,7 +66,7 @@ public class ItemSpawner : MonoBehaviour
         if (spawnPoint == null)
         {
             Debug.LogError(
-                "ItemSpawner: Spawn Point�� ������� �ʾҽ��ϴ�.",
+                "ItemSpawner: Spawn Point�� �������? �ʾҽ��ϴ�.",
                 this);
             return;
         }
@@ -74,7 +74,7 @@ public class ItemSpawner : MonoBehaviour
         if (conveyorManager == null)
         {
             Debug.LogError(
-                "ItemSpawner: ConveyorManager�� ������� �ʾҽ��ϴ�.",
+                "ItemSpawner: ConveyorManager�� �������? �ʾҽ��ϴ�.",
                 this);
             return;
         }
@@ -93,13 +93,14 @@ public class ItemSpawner : MonoBehaviour
                 {
                     currentSpawnCount++;
                     readyToSpawn = false;
+                    ProcessCounters.Add(lineId == ConveyorLineId.LineA ?CounterType.InputBase:CounterType.InputClaw);
                 }
 
                 yield return new WaitForSeconds(spawnInterval);
             }
             else
             {
-                // ������ ���� ���̸� ������ ��ٸ��ϴ�.
+                // ������ ���� ���̸� ������ ��ٸ��ϴ�?.
                 yield return new WaitForSeconds(0.5f);
             }
         }
@@ -159,7 +160,7 @@ public class ItemSpawner : MonoBehaviour
         // �ҷ� ���θ� �� ���� �������� ���մϴ�.
         bool isDefective = Random.value < defectiveProbability;
 
-        // ���� Pusher�� ItemType�� Ȯ���ϹǷ� ���� ����� ����մϴ�.
+        // ���� Pusher�� ItemType�� Ȯ���ϹǷ� ���� �����? ����մϴ�?.
         Item item = newItem.GetComponent<Item>();
 
         if (item != null)
@@ -197,7 +198,7 @@ public class ItemSpawner : MonoBehaviour
         return true;
     }
 
-    // ProcessController�� ���� ������ ó��(��� �Ǵ� ���) �Ϸ� �� ȣ��
+    // ProcessController�� ���� ������ ó��(���? �Ǵ� ���?) �Ϸ� �� ȣ��
     public void NotifyItemCleared()
     {
         readyToSpawn = true;
