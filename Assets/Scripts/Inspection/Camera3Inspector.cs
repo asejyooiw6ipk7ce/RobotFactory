@@ -170,6 +170,33 @@ public class Camera3Inspector : MonoBehaviour
         if (clawPartInfo != null) clawPartInfo.defectType = defect;
         if (robotBaseInfo != null) robotBaseInfo.defectType = defect;
 
+        // [Commit 1] 완제품 Item 컴포넌트의 itemType 동기화 (푸셔 판정용)
+        Item baseItem = null;
+        if (robotBaseInfo != null)
+        {
+            baseItem = robotBaseInfo.GetComponent<Item>() 
+                    ?? robotBaseInfo.GetComponentInParent<Item>() 
+                    ?? robotBaseInfo.GetComponentInChildren<Item>()
+                    ?? (robotBaseInfo.transform.root != null ? robotBaseInfo.transform.root.GetComponent<Item>() : null);
+            if (baseItem != null)
+            {
+                baseItem.itemType = isPass ? ItemType.Normal : ItemType.Defective;
+            }
+        }
+
+        Item clawItem = null;
+        if (clawPartInfo != null)
+        {
+            clawItem = clawPartInfo.GetComponent<Item>() 
+                    ?? clawPartInfo.GetComponentInParent<Item>() 
+                    ?? clawPartInfo.GetComponentInChildren<Item>()
+                    ?? (clawPartInfo.transform.root != null ? clawPartInfo.transform.root.GetComponent<Item>() : null);
+            if (clawItem != null)
+            {
+                clawItem.itemType = isPass ? ItemType.Normal : ItemType.Defective;
+            }
+        }
+
         // 5. 부품 식별자(ID) 결정
         string partId = null;
         if (robotBaseInfo != null && !string.IsNullOrEmpty(robotBaseInfo.id)) partId = robotBaseInfo.id;
