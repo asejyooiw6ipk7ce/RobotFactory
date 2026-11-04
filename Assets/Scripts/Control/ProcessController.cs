@@ -116,7 +116,8 @@ public class ProcessController : MonoBehaviour
 
     public void ResetProcess()
     {
-        if (cycle != null) StopCoroutine(cycle);
+
+        StopAllCoroutines();
         cycle = null;
         waitingPart = null;
         waitingBaseAtInspection = null;
@@ -229,7 +230,7 @@ public class ProcessController : MonoBehaviour
                 State == ProcessState.Running && waitingPart != null);
             Debug.Log($"[ProcessController] [5단계] 클로 '{waitingPart.name}' 도착 감지. 클로 비전 검사 시작...", this);
 
-            yield return StartCoroutine(InspectClawUntilPass());
+            yield return InspectClawUntilPass();
             if (!clawInspectPassed)
             {
                 // 검사 통과 없이 조립으로 넘어가지 않도록 알람 정지
