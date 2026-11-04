@@ -10,8 +10,8 @@ using UnityEngine;
 public class RejectController : MonoBehaviour
 {
     [Header("처리 카운터 설정")]
-    [Tooltip("상자에 도달했을 때 증가시킬 카운터 (폐기 상자: Discarded, 출하 상자: Shipped)")]
-    [SerializeField] private CounterType counterType = CounterType.Discarded;
+    [Tooltip("출하 상자: Shipped / 폐기 상자: DiscardedBase (들어온 물체에 따라 베이스·클로 폐기를 자동 구분)")]
+    [SerializeField] private CounterType counterType = CounterType.DiscardedBase;
 
     [Header("낙하 연출 및 파괴 설정")]
     [Tooltip("상자 진입 후 완전히 파괴하기까지의 지연 시간 (초)")]
@@ -72,12 +72,33 @@ public class RejectController : MonoBehaviour
         if (processedObjects.Contains(targetRoot) || !targetRoot.activeSelf) return;
         processedObjects.Add(targetRoot);
 
-        // 카운터 증가 (Discarded 또는 Shipped)
-        ProcessCounters.Add(counterType);
-        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ 카운터: {counterType} +1, {destroyDelay:F1}초 후 파괴 예정", this);
+        // 카운터 증가: 폐기·출하는 상자에 도착할 때 한 번만 센다 (불량 개수는 Camera3 판정 시점에 셈)
+        CounterType? counted = ResolveCounter(targetRoot);
+        if (counted.HasValue) ProcessCounters.Add(counted.Value);
+        string countLog = counted.HasValue ? $"{counted.Value} +1" : "카운트 없음 (완제품 불량은 Camera3 판정 시 집계)";
+        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ {countLog}, {destroyDelay:F1}초 후 파괴 예정", this);
 
         // 상자 내부로 자연스럽게 낙하하도록 지연 파괴 코루틴 시작
-        StartCoroutine(DestroyAfterDrop(targetRoot, counterType, destroyDelay));
+        StartCoroutine(DestroyAfterDrop(targetRoot, counted ?? CounterType.Defective, destroyDelay));
+    }
+
+    /// <summary>
+    /// 상자에 들어온 물체로 증가시킬 카운터를 정한다.
+    /// - 출하 상자(counterType = Shipped): 출하
+    /// - 폐기 상자: 베이스 단독 → 베이스 폐기 / 클로 단독 → 클로 폐기
+    /// - 조립된 완제품(베이스 + 클로): Camera3 판정 때 Defective로 이미 셌으므로 null (카운트하지 않음)
+    /// </summary>
+    private CounterType? ResolveCounter(GameObject root)
+    {
+        if (counterType == CounterType.Shipped) return CounterType.Shipped;
+
+        bool hasBase = root.GetComponentInChildren<BaseInfo>(true) != null;
+        bool hasClaw = root.GetComponentInChildren<PartInfo>(true) != null;
+
+        if (hasBase && hasClaw) return null;
+        if (hasBase) return CounterType.DiscardedBase;
+        if (hasClaw) return CounterType.DiscardedClaw;
+        return counterType;   // 종류를 판단할 수 없으면 인스펙터 설정값으로 센다
     }
 
     /// <summary>

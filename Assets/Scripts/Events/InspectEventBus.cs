@@ -1,10 +1,13 @@
 using System;
+using UnityEditor.MPE;
 
 public static class InspectEventBus{
     public static event Action<InspectEvent> Published;
     public static event Action<PartExitEvent> PartExited;
     public static event Action<CounterType> CounterAdded;
     public static event Action<int, RobotState> RobotStateChanged;
+    public static event Action ProcessReset;
+    public static event Action<ProcessState, string> ProcessStateChanged;
 
     public static void Publish(InspectEvent e){
         Published?.Invoke(e);
@@ -19,4 +22,13 @@ public static class InspectEventBus{
     public static void PublishRobotState(int robotId, RobotState state){
         RobotStateChanged?.Invoke(robotId, state);
     }
+
+    public static void PublishReset(){
+        ProcessReset?.Invoke();
+    }
+
+    public static void PublishProcessState(ProcessState state, string reason){
+        ProcessStateChanged?.Invoke(state, reason);
+    }
+    
 }

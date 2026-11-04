@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-public enum ProcessState { Stopped, Running, Paused, Alarm }
-
 public class ProcessController : MonoBehaviour
 {
     [Header("연결")]
@@ -79,8 +77,9 @@ public class ProcessController : MonoBehaviour
             Debug.LogWarning("[ProcessController] 현재 알람 상태입니다. Reset을 먼저 수행한 후 다시 Run 해주세요.", this);
             return;
         }
-        State = ProcessState.Running;
+        //State = ProcessState.Running;
         Debug.Log("[ProcessController] 공정 시작 (Running)!", this);
+        ChangeState(ProcessState.Running);
         conveyors.StartAll();
         if (cycle == null) cycle = StartCoroutine(RunCycle());
     }
@@ -88,11 +87,12 @@ public class ProcessController : MonoBehaviour
     public void Pause()
     {
         if (State != ProcessState.Running) return;
-        State = ProcessState.Paused;
+        // State = ProcessState.Paused;
+        ChangeState(ProcessState.Paused);
         conveyors.PauseAll();
     }
 
-    public void Reset()
+    public void ResetProcess()
     {
         if (cycle != null) StopCoroutine(cycle);
         cycle = null;
@@ -103,6 +103,7 @@ public class ProcessController : MonoBehaviour
         conveyors.StopAll();
         conveyors.RaiseStoppers(ConveyorLineId.LineC);
         assembly.ResetToInitialState();
+        InspectEventBus.PublishReset();     //Reset 버튼 누르면 대시보드 초기화
         // 스포너 초기화: 남은 아이템 제거 + 생성 상태 복구 (안 하면 readyToSpawn이 false로 남아 재시작 후 생성이 안 됨)
         if (baseSpawner != null) baseSpawner.ClearSpawned();
         if (clawSpawner != null) clawSpawner.ClearSpawned();
@@ -114,7 +115,8 @@ public class ProcessController : MonoBehaviour
         successRate = 0f;
 
         SimTime = 0f;
-        State = ProcessState.Stopped;
+        // State = ProcessState.Stopped;
+        ChangeState(ProcessState.Stopped);
     }
 
     // ConveyorManager가 정지점 도착을 알려줌
@@ -145,7 +147,8 @@ public class ProcessController : MonoBehaviour
             if (robotBase == null)
             {
                 Debug.LogError($"[ProcessController] 정지점의 베이스 '{waitingBase.name}'에 BaseInfo가 없어 검사를 중단하고 알람으로 전환합니다.", this);
-                State = ProcessState.Alarm;
+                // State = ProcessState.Alarm;
+                ChangeState(ProcessState.Alarm, "베이스 정보(BaseInfo)가 없어 공정을 멈췄습니다");
                 conveyors.StopAll();
                 continue;
             }
@@ -184,7 +187,8 @@ public class ProcessController : MonoBehaviour
             {
                 // 검사 통과 없이 조립으로 넘어가지 않도록 알람 정지
                 Debug.LogError("[ProcessController] 클로 검사 실패로 공정을 중단하고 알람으로 전환합니다.", this);
-                State = ProcessState.Alarm;
+                // State = ProcessState.Alarm;
+                ChangeState(ProcessState.Alarm, "클로 검사를 할 수 없어 공정을 멈췄습니다");
                 conveyors.StopAll();
                 continue;
             }
@@ -246,7 +250,8 @@ public class ProcessController : MonoBehaviour
             if (!assembly.LastAssemblyOk)
             {
                 Debug.LogError("[ProcessController] 로봇팔 조립 실패로 공정을 중단하고 알람으로 전환합니다.", this);
-                State = ProcessState.Alarm;
+                // State = ProcessState.Alarm;
+                ChangeState(ProcessState.Alarm, "조립에 실패해 공정을 멈췄습니다 (클로 폐기)");
                 conveyors.StopAll();
                 continue;   // Alarm 상태라 WaitUntil에서 멈춤 → Reset 전까지 대기
             }
@@ -312,14 +317,14 @@ public class ProcessController : MonoBehaviour
     }
 
     // [좌표 디버그] 검사/조립 픽업 좌표 비교용 로그 (확인 후 제거)
-    private void LogPickPositions(string tag)
-    {
-        Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
-        Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
-        Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
-        Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
-        Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
-    }
+     private void LogPickPositions(string tag)
+     {
+         Vector3 claw = waitingPart != null ? waitingPart.transform.position : Vector3.zero;
+         Vector3 inspectPos = (station1 != null && station1.inspectPose != null) ? station1.inspectPose.position : Vector3.zero;
+         Vector3 rejectPos = (station1 != null && station1.reject != null && station1.reject.pickPoint != null) ? station1.reject.pickPoint.position : Vector3.zero;
+         Vector3 assemblyPick = assembly != null ? assembly.GetPickPosition() : Vector3.zero;
+         Debug.Log($"[PosLog:{tag}] 클로 위치={claw} | 검사 inspectPose={inspectPos} | 폐기 pickPoint={rejectPos} | 조립 GetPickPosition={assemblyPick}", this);
+     }
 
     // 클로가 검사를 통과할 때까지 반복한다.
     // 통과: 스토퍼 재개는 InspectSequence 안에서 처리되고, 클로 생성 트리거를 보낸다.
@@ -372,5 +377,12 @@ public class ProcessController : MonoBehaviour
             yield return new WaitUntil(() =>
                 State == ProcessState.Running && waitingPart != null);
         }
+    }
+
+    // 상태를 바꾸고 대시보드에 알린다
+    private void ChangeState(ProcessState next, string reason = null){
+        if(State == next) return;
+        State = next;
+        InspectEventBus.PublishProcessState(next, reason);
     }
 }

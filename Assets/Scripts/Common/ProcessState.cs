@@ -1,0 +1,1 @@
+public enum ProcessState { Stopped, Running, Paused, Alarm }

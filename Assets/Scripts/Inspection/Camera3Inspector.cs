@@ -37,7 +37,7 @@ public class Camera3Inspector : MonoBehaviour
     [Tooltip("검사 시 ProcessCounters.Add(CounterType.Inspected) 호출 여부")]
     public bool publishInspectedCounter = true;
 
-    [Tooltip("검사 직후 양품(Shipped) / 불량(Defective) 카운터 증가 및 PartExitEvent 자동 발행 여부 (별도 푸셔가 발행 시 해제)")]
+    [Tooltip("검사 직후 불량(Defective) 카운터 증가 및 PartExitEvent 자동 발행 여부 (출하 Shipped는 출하 상자 RejectController가 집계)")]
     public bool publishBranchCounterAndExit = true;
 
     [Header("메인 씬 통합 대비 상대 오프셋 (ChangminScene 실측치)")]
@@ -212,13 +212,13 @@ public class Camera3Inspector : MonoBehaviour
             ProcessCounters.Add(CounterType.Inspected);
         }
 
-        // 7. 출하(Shipped) / 불량(Defective) 카운터 및 공정 이탈 이벤트(PartExitEvent) 발행 (FR-10, FR-12)
+        // 7. 불량(Defective) 카운터 및 공정 이탈 이벤트(PartExitEvent) 발행 (FR-10, FR-12)
+        //    불량 개수는 판정 시점에 센다. 출하(Shipped)는 출하 상자(RejectController)에 도착할 때 센다.
         if (publishBranchCounterAndExit)
         {
-            CounterType branchCounter = isPass ? CounterType.Shipped : CounterType.Defective;
             ExitReason exitReason = isPass ? ExitReason.Shipped : ExitReason.Defective;
 
-            ProcessCounters.Add(branchCounter);
+            if (!isPass) ProcessCounters.Add(CounterType.Defective);
             InspectEventBus.PublishExit(new PartExitEvent(partId, exitReason, defect, Time.time));
 
             // 조립에 사용되어 완제품에 통합된 부품1(클로)도 공정 위 대기 부품에서 소모되었음을 알림

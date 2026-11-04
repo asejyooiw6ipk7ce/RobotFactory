@@ -2,67 +2,96 @@
     <Style src="project://database/Assets/UI/Dashboard/Dashboard.uss" />
     <ui:VisualElement name="dashboard" class="dash">
 
-        <!-- KPI: 최종 양품률 -->
-        <ui:VisualElement class="card">
-            <ui:Label text="KPI" class="card-caption" />
-            <ui:Label text="최종 양품률" class="card-title" />
-            <ui:Label name="final-yield" text="-" class="kpi-value" />
-        </ui:VisualElement>
-
-        <!-- 스테이션 불량률 -->
-        <ui:VisualElement class="row">
-            <ui:VisualElement name="station1-card" class="card card-half card-station">
-                <ui:Label text="스테이션 1 불량률" class="card-title" />
-                <ui:Label name="station1-rate" text="-" class="value" />
+        <!-- 공정 상태 / 가동 시간 / 전체 수율 -->
+        <ui:VisualElement class="card header">
+            <ui:VisualElement class="header-item">
+                <ui:Label text="공정 상태" class="header-label" />
+                <ui:Label name="process-state" text="정지" class="badge badge-lg proc-stopped" />
             </ui:VisualElement>
-            <ui:VisualElement name="station2-card" class="card card-half card-station">
-                <ui:Label text="스테이션 2 불량률" class="card-title" />
-                <ui:Label name="station2-rate" text="-" class="value" />
+            <ui:VisualElement class="header-item header-item-mid">
+                <ui:Label text="가동 시간" class="header-label" />
+                <ui:Label name="run-time" text="00:00" class="header-value" />
             </ui:VisualElement>
-            <ui:VisualElement name="station3-card" class="card card-half card-station">
-                <ui:Label text="스테이션 3 불량률" class="card-title" />
-                <ui:Label name="station3-rate" text="-" class="value" />
+            <ui:VisualElement class="header-item">
+                <ui:Label text="전체 수율" class="header-label" />
+                <ui:Label name="total-yield" text="-" class="header-value header-kpi" />
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 처리 개수 -->
-        <ui:VisualElement class="row">
-            <ui:VisualElement class="card card-third">
-                <ui:Label text="투입" class="card-title" />
-                <ui:Label name="count-input" text="0" class="value" />
-            </ui:VisualElement>
-            <ui:VisualElement class="card card-third">
-                <ui:Label text="검사 완료" class="card-title" />
-                <ui:Label name="count-inspected" text="0" class="value" />
-            </ui:VisualElement>
-            <ui:VisualElement class="card card-third tone-bad">
-                <ui:Label text="폐기" class="card-title" />
-                <ui:Label name="count-discarded" text="0" class="value" />
-            </ui:VisualElement>
+        <!-- 공정 제어 -->
+        <ui:VisualElement class="controls">
+            <ui:Button name="btn-run" text="가동" class="ctrl-btn ctrl-run" />
+            <ui:Button name="btn-pause" text="일시정지" class="ctrl-btn ctrl-pause" />
+            <ui:Button name="btn-reset" text="리셋" class="ctrl-btn ctrl-last" />
         </ui:VisualElement>
+
+        <!-- 라인 현황 -->
+        <ui:Label text="라인 현황" class="section-title" />
         <ui:VisualElement class="row">
-            <ui:VisualElement class="card card-half tone-bad">
-                <ui:Label text="불량 컨베이어 이동" class="card-title" />
-                <ui:Label name="count-defect" text="0" class="value" />
+            <ui:VisualElement name="station2-card" class="card card-station col">
+                <ui:Label text="베이스 라인" class="col-title" />
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="투입" class="stat-name" />
+                    <ui:Label name="count-input-base" text="0" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="불량률" class="stat-name" />
+                    <ui:Label name="station2-rate" text="-" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="폐기" class="stat-name" />
+                    <ui:Label name="count-discarded-base" text="0" class="stat-value" />
+                </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement class="card card-half tone-good">
-                <ui:Label text="출하" class="card-title" />
-                <ui:Label name="count-shipped" text="0" class="value" />
+
+            <ui:VisualElement name="station1-card" class="card card-station col">
+                <ui:Label text="클로 라인" class="col-title" />
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="투입" class="stat-name" />
+                    <ui:Label name="count-input-claw" text="0" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="불량률" class="stat-name" />
+                    <ui:Label name="station1-rate" text="-" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="폐기" class="stat-name" />
+                    <ui:Label name="count-discarded-claw" text="0" class="stat-value" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="station3-card" class="card card-station col col-last">
+                <ui:Label text="완제품" class="col-title" />
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="출하" class="stat-name" />
+                    <ui:Label name="count-shipped" text="0" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="불량" class="stat-name" />
+                    <ui:Label name="count-defect" text="0" class="stat-value" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="합격률" class="stat-name" />
+                    <ui:Label name="final-pass-rate" text="-" class="stat-value" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 
         <!-- 로봇 상태 -->
-        <ui:VisualElement class="robot-row">
-            <ui:Label text="로봇 1" class="robot-name" />
-            <ui:Label name="robot1-state" text="대기" class="badge state-idle" />
-        </ui:VisualElement>
-        <ui:VisualElement class="robot-row">
-            <ui:Label text="로봇 2" class="robot-name" />
-            <ui:Label name="robot2-state" text="대기" class="badge state-idle" />
+        <ui:Label text="로봇 상태" class="section-title" />
+        <ui:VisualElement class="card robot-card">
+            <ui:VisualElement class="robot-row robot-row-first">
+                <ui:Label text="검사 로봇" class="robot-name" />
+                <ui:Label name="robot1-state" text="대기" class="badge state-idle" />
+            </ui:VisualElement>
+            <ui:VisualElement class="robot-row">
+                <ui:Label text="조립 로봇" class="robot-name" />
+                <ui:Label name="robot2-state" text="대기" class="badge state-idle" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- 이상 알림 -->
-        <ui:VisualElement class="alert-box">
+        <!-- 알림 -->
+        <ui:VisualElement name="alert-box" class="card alert-box">
             <ui:Label text="알림" class="alert-title" />
             <ui:VisualElement name="alert-list" class="alert-list" />
             <ui:Label name="alert-empty" text="알림 없음" class="alert-empty" />

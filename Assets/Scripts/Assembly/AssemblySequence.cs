@@ -1474,7 +1474,7 @@ public partial class AssemblySequence : MonoBehaviour
             ? currentPartInfo.id
             : (clawPart != null ? clawPart.name : "CLAW_PART");
 
-        ProcessCounters.Add(CounterType.Discarded);
+        // 클로 폐기 카운트는 폐기함 RejectController가 도착 시 집계
         InspectEventBus.PublishExit(new PartExitEvent(clawId, ExitReason.Discarded, DefectType.None, Time.time));
 
         if (currentBase != null)
@@ -1491,7 +1491,8 @@ public partial class AssemblySequence : MonoBehaviour
             ? currentBase.id
             : (targetRobotBase != null ? targetRobotBase.name : "BASE_MOTO");
 
-        ProcessCounters.Add(CounterType.Defective);
+        // 조립 실패 != Defective (완제품 불량)
+        // ProcessCounters.Add(CounterType.Defective);
         InspectEventBus.PublishExit(new PartExitEvent(baseId, ExitReason.Defective, DefectType.PartLoss, Time.time));
         Debug.LogWarning($"[AssemblySequence] 📢 조립 최종 실패 처리 완료 | 클로 폐기(Discarded): {clawId}, 차체 불량 배출(Defective/PartLoss): {baseId}");
 

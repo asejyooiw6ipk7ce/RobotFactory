@@ -89,6 +89,7 @@ public class ItemSpawner : MonoBehaviour
                 if (SpawnItem())
                 {
                     currentSpawnCount++;
+                    ProcessCounters.Add(lineId == ConveyorLineId.LineA ? CounterType.InputBase : CounterType.InputClaw);
                     readyToSpawn = false; // 부품이 퇴출될 때까지 다음 생성 차단 (공정 내 1개 유지)
                     Debug.Log($"[ItemSpawner] ✨ 새 부품 스폰 완료! 라인: {lineId}, 누적: {currentSpawnCount}개", this);
                 }

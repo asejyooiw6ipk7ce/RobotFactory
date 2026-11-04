@@ -2438,6 +2438,7 @@ GameObject:
   - component: {fileID: 1585485886}
   - component: {fileID: 1585485888}
   - component: {fileID: 1585485887}
+  - component: {fileID: 1585485889}
   m_Layer: 0
   m_Name: Dashboard
   m_TagString: Untagged
@@ -2499,6 +2500,20 @@ MonoBehaviour:
   alertThresholdPercent: 20
   recentCount: 10
   minInspectionsForAlert: 5
+--- !u!114 &1585485889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585485885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26b1d24c56515fc43a05aed1bceca6a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ProcessControlPanel
+  document: {fileID: 1585485887}
+  controller: {fileID: 557621829}
 --- !u!1 &1593405777
 GameObject:
   m_ObjectHideFlags: 0

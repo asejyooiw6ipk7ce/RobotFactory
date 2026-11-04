@@ -21,7 +21,7 @@ public class ProcessControllerEditor : Editor
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Run")) controller.Run();
             if (GUILayout.Button("Pause")) controller.Pause();
-            if (GUILayout.Button("Reset")) controller.Reset();
+            if (GUILayout.Button("Reset")) controller.ResetProcess();
             EditorGUILayout.EndHorizontal();
         }
 

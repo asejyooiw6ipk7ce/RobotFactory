@@ -224,7 +224,7 @@ public class PusherController : MonoBehaviour
                     Vector3.zero,
                     destinationStartWaypointIndex);
 
-                ProcessCounters.Add(CounterType.Defective);
+                // ProcessCounters.Add(CounterType.Defective);
                 mover.enabled = true;
                 conveyorManager.RunLine(destinationLineId);
                 conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
