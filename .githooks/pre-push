@@ -1,11 +1,18 @@
 #!/bin/sh
-# 원격 어디에도 없는 새 커밋만 검사한다. 병합 커밋은 검사하지 않는다.
+# 1) Git LFS 파일 업로드 (core.hooksPath를 쓰면 LFS 기본 훅이 실행되지 않으므로 여기서 직접 호출)
+input=$(cat)
+if command -v git-lfs >/dev/null 2>&1; then
+  printf '%s\n' "$input" | git lfs pre-push "$@" || exit $?
+fi
+
+# 2) 원격 어디에도 없는 새 커밋만 검사한다. 병합 커밋은 검사하지 않는다.
 # (develop 등 이미 원격에 있는 커밋은 검사 대상이 아니다)
 zero=0000000000000000000000000000000000000000
 pattern='^(feat|fix|docs|test|refactor|chore)(\([^)]+\))? *: .+'
 bad=0
 
 while read local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
   [ "$local_sha" = "$zero" ] && continue
   for c in $(git rev-list --no-merges "$local_sha" --not --remotes); do
     subject=$(git log -1 --format=%s "$c")
@@ -15,6 +22,7 @@ while read local_ref local_sha remote_ref remote_sha; do
       bad=1
     fi
   done
-done
+done <<EOF
+$input                                                                                                               F
 
 exit $bad
