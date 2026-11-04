@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 public class ProcessController : MonoBehaviour
@@ -294,13 +294,22 @@ public class ProcessController : MonoBehaviour
             if (waitingPart == clawGo) waitingPart = null;
 
             // 7) 결과 확인
+            bool isPartLoss = (assemblyBase != null && assemblyBase.defectType == DefectType.PartLoss);
+
             if (!assembly.LastAssemblyOk)
             {
-                Debug.LogError("[ProcessController] 로봇팔 조립 실패로 공정을 중단하고 알람으로 전환합니다.", this);
-                // State = ProcessState.Alarm;
-                ChangeState(ProcessState.Alarm, "조립에 실패해 공정을 멈췄습니다 (클로 폐기)");
-                conveyors.StopAll();
-                continue;   // Alarm 상태라 WaitUntil에서 멈춤 → Reset 전까지 대기
+                if (isPartLoss)
+                {
+                    Debug.LogWarning("[ProcessController] 조립 재시도 초과로 결합 실패(클로 폐기). 차체(PartLoss)를 Line C 불량 배출 라인으로 이송합니다.", this);
+                }
+                else
+                {
+                    Debug.LogError("[ProcessController] 로봇팔 조립 실패(참조 누락 또는 시스템 오류)로 공정을 중단하고 알람으로 전환합니다.", this);
+                    // State = ProcessState.Alarm;
+                    ChangeState(ProcessState.Alarm, "조립 오류로 공정을 멈췄습니다");
+                    conveyors.StopAll();
+                    continue;   // Alarm 상태라 WaitUntil에서 멈춤 → Reset 전까지 대기
+                }
             }
 
             // 카메라3 완제품 비전 검사 판정 확인 (Camera3Inspector)
@@ -308,9 +317,21 @@ public class ProcessController : MonoBehaviour
                 camera3 = assembly.camera3Inspector;
 
             bool isProductPass = true;
-            if (camera3 != null && camera3.LastResult.HasValue)
+            if (isPartLoss)
+            {
+                // 재시도 실패로 미결합된 차체는 무조건 불량 처리
+                isProductPass = false;
+            }
+            else if (camera3 != null && camera3.LastResult.HasValue)
             {
                 isProductPass = (camera3.LastResult.Value == InspectResult.Pass);
+            }
+
+            // 차체 Item 컴포넌트 불량 상태 동기화
+            var baseItemOnAssembly = assemblyBaseObject.GetComponent<Item>();
+            if (baseItemOnAssembly != null && !isProductPass)
+            {
+                baseItemOnAssembly.itemType = ItemType.Defective;
             }
 
             // [Commit 3] 조립 성공률 누적 (과제 6.8 요구사항)
@@ -325,7 +346,8 @@ public class ProcessController : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"[ProcessController] ⭐ [조립 성공률] {successCount}/{totalAssembledCount}회 ({successRate:F1}%) | 완제품 결합 각도 불량(AngleError) 감지. Line C 푸셔 배출을 위해 무조건 이송을 진행합니다.", this);
+                string failReason = isPartLoss ? "조립 재시도 실패(PartLoss)" : "완제품 결합 각도 불량(AngleError)";
+                Debug.LogWarning($"[ProcessController] ⭐ [조립 성공률] {successCount}/{totalAssembledCount}회 ({successRate:F1}%) | {failReason} 감지. Line C 푸셔 배출을 위해 무조건 이송을 진행합니다.", this);
             }
 
             // 8) 라인 가동 및 완제품 Line C 이송 (양품/불량 불문 무조건 이송)
