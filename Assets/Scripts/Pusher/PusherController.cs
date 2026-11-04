@@ -189,10 +189,13 @@ public class PusherController : MonoBehaviour
         // 5. 푸셔 헤드 원위치 복귀
         yield return MovePusherTo(retractedPoint);
 
-        // 잔여 수평 속도 감쇄
-        Vector3 itemVelocity = itemRigidbody.linearVelocity;
-        itemRigidbody.linearVelocity = new Vector3(0f, itemVelocity.y, 0f);
-        itemRigidbody.angularVelocity = Vector3.zero;
+        // 잔여 수평 속도 감쇄 (오브젝트가 이미 상자에 도달해 파괴되었을 수 있으므로 null 체크)
+        if (itemRigidbody != null)
+        {
+            Vector3 itemVelocity = itemRigidbody.linearVelocity;
+            itemRigidbody.linearVelocity = new Vector3(0f, itemVelocity.y, 0f);
+            itemRigidbody.angularVelocity = Vector3.zero;
+        }
 
         // 6. 배출 모드 분기 (컨베이어 이관 vs 상자 단순 낙하)
         // Line C 푸셔이거나 dropDirectlyToBox가 true이면 무조건 상자 배출(모드 B)로 처리
@@ -212,17 +215,24 @@ public class PusherController : MonoBehaviour
 
             if (item != null) item.state = ItemState.Idle;
 
-            mover.TransferToConveyor(
-                conveyorManager,
-                destinationLineId,
-                destinationDirection,
-                Vector3.zero,
-                destinationStartWaypointIndex);
+            if (mover != null)
+            {
+                mover.TransferToConveyor(
+                    conveyorManager,
+                    destinationLineId,
+                    destinationDirection,
+                    Vector3.zero,
+                    destinationStartWaypointIndex);
 
-            ProcessCounters.Add(CounterType.Defective);
-            mover.enabled = true;
-            conveyorManager.RunLine(destinationLineId);
-            conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
+                ProcessCounters.Add(CounterType.Defective);
+                mover.enabled = true;
+                conveyorManager.RunLine(destinationLineId);
+                conveyorManager.ReleaseItemAndRunLine(sourceLineId, mover);
+            }
+            else
+            {
+                conveyorManager.ReleaseItemAndRunLine(sourceLineId, null);
+            }
         }
         else
         {
@@ -249,7 +259,11 @@ public class PusherController : MonoBehaviour
             conveyorManager.ReleaseItemAndRunLine(sourceLineId, null);
         }
 
-        ItemPushed?.Invoke(arrivedItem);
+        if (arrivedItem != null)
+        {
+            ItemPushed?.Invoke(arrivedItem);
+        }
+
         isBusy = false;
     }
 

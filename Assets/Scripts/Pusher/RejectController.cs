@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,6 +12,10 @@ public class RejectController : MonoBehaviour
     [Header("처리 카운터 설정")]
     [Tooltip("상자에 도달했을 때 증가시킬 카운터 (폐기 상자: Discarded, 출하 상자: Shipped)")]
     [SerializeField] private CounterType counterType = CounterType.Discarded;
+
+    [Header("낙하 연출 및 파괴 설정")]
+    [Tooltip("상자 진입 후 완전히 파괴하기까지의 지연 시간 (초)")]
+    [SerializeField] private float destroyDelay = 0.8f;
 
     /// <summary>
     /// 완제품이 상자에 도착해 완전히 파괴(퇴출)되었을 때 발생하는 정적 이벤트
@@ -69,14 +74,39 @@ public class RejectController : MonoBehaviour
 
         // 카운터 증가 (Discarded 또는 Shipped)
         ProcessCounters.Add(counterType);
-        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ 카운터: {counterType} +1, 오브젝트 즉시 파괴(Destroy) 완료", this);
+        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ 카운터: {counterType} +1, {destroyDelay:F1}초 후 파괴 예정", this);
 
-        // 추가 물리 충돌 방지를 위해 즉시 비활성화 후 오브젝트 파괴
-        targetRoot.SetActive(false);
-        Destroy(targetRoot);
+        // 상자 내부로 자연스럽게 낙하하도록 지연 파괴 코루틴 시작
+        StartCoroutine(DestroyAfterDrop(targetRoot, counterType, destroyDelay));
+    }
 
-        // 공정 컨트롤러에 완제품 퇴출 완료 알림 (다음 사이클 부품 스폰 트리거)
-        OnProductCleared?.Invoke(counterType);
+    /// <summary>
+    /// 상자 바닥으로 떨어지는 낙하 모션을 자연스럽게 연출한 뒤 안전하게 파괴 및 다음 공정 알림
+    /// </summary>
+    private IEnumerator DestroyAfterDrop(GameObject targetRoot, CounterType type, float delay)
+    {
+        // 1. 컨베이어 이송 스크립트가 남아있다면 비활성화하여 추가적인 수평 이동을 방지하고 순수 낙하만 허용
+        ConveyorItemMover mover = targetRoot.GetComponentInChildren<ConveyorItemMover>();
+        if (mover != null)
+        {
+            mover.enabled = false;
+        }
+
+        // 2. 상자 바닥으로 자연스럽게 떨어지는 모션 대기
+        if (delay > 0f)
+        {
+            yield return new WaitForSeconds(delay);
+        }
+
+        // 3. 오브젝트 비활성화 및 파괴
+        if (targetRoot != null)
+        {
+            targetRoot.SetActive(false);
+            Destroy(targetRoot);
+        }
+
+        // 4. 공정 컨트롤러에 완제품 퇴출 완료 알림 (다음 사이클 부품 스폰 트리거)
+        OnProductCleared?.Invoke(type);
     }
 
     /// <summary>
