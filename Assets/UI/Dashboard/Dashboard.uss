@@ -257,3 +257,29 @@
 .ctrl-last { margin-right: 0; }
 
 .ctrl-btn:disabled { opacity: 0.35; }
+
+/* ── 현장 화면 (오른쪽 위 떠 있는 패널) ── */
+.cam-panel {
+    -unity-font-definition: url("project://database/Assets/Fonts/Pretendard-Regular SDF.asset");
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 560px;
+    color: var(--text);
+}
+
+.cam-tabs { flex-direction: row; margin: 8px 0; }
+
+.cam-tab {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 28px;
+    margin: 0 4px 0 0;
+    border-width: 0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background-color: var(--card-border);
+}
+.cam-tab:hover { background-color: #4b5563; }
+.cam-tab.is-active { background-color: var(--robot-work); color: var(--text); -unity-font-style: bold; }
