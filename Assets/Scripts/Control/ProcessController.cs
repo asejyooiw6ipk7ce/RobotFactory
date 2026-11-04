@@ -278,7 +278,7 @@ public class ProcessController : MonoBehaviour
 
             // 8) 라인 가동 및 완제품 Line C 이송 (양품/불량 불문 무조건 이송)
             // 8-1) Line B(클로 공급 라인) 스토퍼 해제 및 라인 재가동
-            conveyors.ReleaseItemAndRunLine(ConveyorLineId.LineB, partMover);
+            conveyors.ReleaseItemAndRunLine(ConveyorLineId.Shipping, partMover);
 
             // 8-2) Line C(완제품 라인)로 차체 이관 및 이송 가동
             if (assemblyBaseMover != null)
