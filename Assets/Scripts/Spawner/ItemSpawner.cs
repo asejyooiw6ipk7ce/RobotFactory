@@ -4,46 +4,46 @@ using UnityEngine;
 
 public class ItemSpawner : MonoBehaviour
 {
-    [Header("?Š¤?°?•  ?•„?´?…œ ?”„ë¦¬íŒ¹ ë°? ?œ„ì¹?")]
-    [Tooltip("?Š¤?°?•  ?•„?´?…œ ?”„ë¦¬íŒ¹")]
+    [Header("ìŠ¤í°í•  ì•„ì´í…œ í”„ë¦¬íŒ¹ ë° ìœ„ì¹˜")]
+    [Tooltip("ìŠ¤í°í•  ì•„ì´í…œ í”„ë¦¬íŒ¹")]
     [SerializeField] private GameObject itemPrefab;
 
-    [Tooltip("?•„?´?…œ?´ ?ƒ?„±?  ?œ„ì¹? Transform")]
+    [Tooltip("ì•„ì´í…œì´ ìƒì„±ë  ìœ„ì¹˜ Transform")]
     [SerializeField] private Transform spawnPoint;
 
-    [Tooltip("?Š¤?° ê°„ê²©(ì´?)")]
+    [Tooltip("ìŠ¤í° ê°„ê²©(ì´ˆ)")]
     [SerializeField] private float spawnInterval = 2f;
 
-    [Header("?Š¤?° ë°©í–¥ ë°? ?šŒ? „")]
-    [Tooltip("?ƒ?„± ?‹œ ? ?š©?•  ì¶”ê?? ?šŒ? „ ?˜¤?”„?…‹")]
+    [Header("ìŠ¤í° ë°©í–¥ ë° íšŒì „")]
+    [Tooltip("ìƒì„± ì‹œ ì ìš©í•  ì¶”ê°€ íšŒì „ ì˜¤í”„ì…‹")]
     [SerializeField] private Vector3 rotationOffset;
 
-    [Tooltip("?´?™ ì§„í–‰ ë°©í–¥ Transform (ë¯¸ì??? • ?‹œ Spawner?˜ forward ?‚¬?š©)")]
+    [Tooltip("ì´ë™ ì§„í–‰ ë°©í–¥ Transform (ë¯¸ì§€ì • ì‹œ Spawnerì˜ forward ì‚¬ìš©)")]
     [SerializeField] private Transform moveDirectionPoint;
 
-    [Header("ì»¨ë² ?´?–´ ?¼?¸ ?„¤? •")]
-    [Tooltip("ì¤‘ì•™ ì»¨ë² ?´?–´ ë§¤ë‹ˆ??? ì°¸ì¡°")]
+    [Header("ì»¨ë² ì´ì–´ ë¼ì¸ ì„¤ì •")]
+    [Tooltip("ì¤‘ì•™ ì»¨ë² ì´ì–´ ë§¤ë‹ˆì € ì°¸ì¡°")]
     [SerializeField] private ConveyorManager conveyorManager;
 
-    [Tooltip("?Š¤?¬?„ˆê°? ?†?•œ ì»¨ë² ?´?–´ ?¼?¸ ID")]
+    [Tooltip("ìŠ¤í¬ë„ˆê°€ ì†í•œ ì»¨ë² ì´ì–´ ë¼ì¸ ID")]
     [SerializeField] private ConveyorLineId lineId;
 
-    [Header("ë¶ˆëŸ‰ ?™•ë¥? ?„¤? •")]
-    [Tooltip("ë¶ˆëŸ‰?’ˆ ?ƒ?„± ?™•ë¥? (0.0: ëª¨ë‘ ?–‘?’ˆ, 1.0: ëª¨ë‘ ë¶ˆëŸ‰)")]
+    [Header("ë¶ˆëŸ‰ í™•ë¥  ì„¤ì •")]
+    [Tooltip("ë¶ˆëŸ‰í’ˆ ìƒì„± í™•ë¥  (0.0: ëª¨ë‘ ì–‘í’ˆ, 1.0: ëª¨ë‘ ë¶ˆëŸ‰)")]
     [SerializeField, Range(0f, 1f)] private float defectiveProbability = 0.5f;
 
-    // ?˜„?¬ê¹Œì?? ?ƒ?„±?œ ?ˆ„?  ?•„?´?…œ ?ˆ˜
+    // í˜„ì¬ê¹Œì§€ ìƒì„±ëœ ëˆ„ì  ì•„ì´í…œ ìˆ˜
     private int currentSpawnCount;
 
-    // ?‹¨?¼ ë¶??’ˆ ? •ì±?: ?˜„?¬ ?¼?¸?— ?™œ?„±?™”?œ ?•„?´?…œ?´ ?—†?„ ?•Œë§? true (1?šŒ 1ê°? ?ƒ?„±)
+    // ë‹¨ì¼ ë¶€í’ˆ ì •ì±…: í˜„ì¬ ë¼ì¸ì— í™œì„±í™”ëœ ì•„ì´í…œì´ ì—†ì„ ë•Œë§Œ true (1íšŒ 1ê°œ ìƒì„±)
     private bool readyToSpawn = true;
 
-    // ProcessController?—?„œ ?Š¤?° ê°??Š¥ ?—¬ë¶? ? œ?–´
+    // ProcessControllerì—ì„œ ìŠ¤í° ê°€ëŠ¥ ì—¬ë¶€ ì œì–´
     public bool AllowSpawn { get; set; } = true;
 
     public ConveyorLineId LineId => lineId;
 
-    // Reset ?‹œ ?ŒŒê´´í•  ?ƒ?„± ?•„?´?…œ ëª©ë¡
+    // Reset ì‹œ íŒŒê´´í•  ìƒì„± ì•„ì´í…œ ëª©ë¡
     private readonly List<GameObject> spawnedItems = new List<GameObject>();
 
     private Coroutine spawnRoutineInstance;
@@ -52,19 +52,19 @@ public class ItemSpawner : MonoBehaviour
     {
         if (itemPrefab == null)
         {
-            Debug.LogError("ItemSpawner: Item Prefab?´ ?„¤? •?˜ì§? ?•Š?•˜?Šµ?‹ˆ?‹¤.", this);
+            Debug.LogError("ItemSpawner: Item Prefabì´ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
             return;
         }
 
         if (spawnPoint == null)
         {
-            Debug.LogError("ItemSpawner: Spawn Pointê°? ?„¤? •?˜ì§? ?•Š?•˜?Šµ?‹ˆ?‹¤.", this);
+            Debug.LogError("ItemSpawner: Spawn Pointê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
             return;
         }
 
         if (conveyorManager == null)
         {
-            Debug.LogError("ItemSpawner: ConveyorManagerê°? ?„¤? •?˜ì§? ?•Š?•˜?Šµ?‹ˆ?‹¤.", this);
+            Debug.LogError("ItemSpawner: ConveyorManagerê°€ ì„¤ì •ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.", this);
             return;
         }
 
@@ -83,15 +83,15 @@ public class ItemSpawner : MonoBehaviour
     {
         while (true)
         {
-            // ?‹¨?¼ ë¶??’ˆ ? •ì±?: ?´? „ ë¶??’ˆ?´ ?‡´ì¶œë˜?–´ readyToSpawn == true?´ê³?, ?¼?¸?´ ê°??™ ì¤‘ì¼ ?•Œë§? 1ê°? ?ƒ?„±
+            // ë‹¨ì¼ ë¶€í’ˆ ì •ì±…: ì´ì „ ë¶€í’ˆì´ í‡´ì¶œë˜ì–´ readyToSpawn == trueì´ê³ , ë¼ì¸ì´ ê°€ë™ ì¤‘ì¼ ë•Œë§Œ 1ê°œ ìƒì„±
             if (readyToSpawn && conveyorManager.IsLineRunning(lineId) && AllowSpawn)
             {
                 if (SpawnItem())
                 {
                     currentSpawnCount++;
-                    readyToSpawn = false; // ë¶??’ˆ?´ ?‡´ì¶œë  ?•Œê¹Œì?? ?‹¤?Œ ?ƒ?„± ì°¨ë‹¨ (ê³µì • ?‚´ 1ê°? ?œ ì§?)
                     ProcessCounters.Add(lineId == ConveyorLineId.LineA ? CounterType.InputBase : CounterType.InputClaw);
-                    Debug.Log($"[ItemSpawner] ?œ¨ ?ƒˆ ë¶??’ˆ ?Š¤?° ?™„ë£?! ?¼?¸: {lineId}, ?ˆ„? : {currentSpawnCount}ê°?", this);
+                    readyToSpawn = false; // ë¶€í’ˆì´ í‡´ì¶œë  ë•Œê¹Œì§€ ë‹¤ìŒ ìƒì„± ì°¨ë‹¨ (ê³µì • ë‚´ 1ê°œ ìœ ì§€)
+                    Debug.Log($"[ItemSpawner] âœ¨ ìƒˆ ë¶€í’ˆ ìŠ¤í° ì™„ë£Œ! ë¼ì¸: {lineId}, ëˆ„ì : {currentSpawnCount}ê°œ", this);
                 }
 
                 yield return new WaitForSeconds(spawnInterval);
@@ -119,7 +119,7 @@ public class ItemSpawner : MonoBehaviour
         Rigidbody itemRigidbody = newItem.GetComponent<Rigidbody>();
         if (itemRigidbody == null)
         {
-            Debug.LogError("ItemSpawner: ?•„?´?…œ ?”„ë¦¬íŒ¹?— Rigidbodyê°? ?•„?š”?•©?‹ˆ?‹¤.", newItem);
+            Debug.LogError("ItemSpawner: ì•„ì´í…œ í”„ë¦¬íŒ¹ì— Rigidbodyê°€ í•„ìš”í•©ë‹ˆë‹¤.", newItem);
             Destroy(newItem);
             return false;
         }
@@ -144,7 +144,7 @@ public class ItemSpawner : MonoBehaviour
             direction,
             rotationOffset);
 
-        // ë¶ˆëŸ‰ ?—¬ë¶? ê²°ì •
+        // ë¶ˆëŸ‰ ì—¬ë¶€ ê²°ì •
         bool isDefective = Random.value < defectiveProbability;
 
         Item item = newItem.GetComponent<Item>();
@@ -155,7 +155,7 @@ public class ItemSpawner : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("ItemSpawner: ?•„?´?…œ?— Item ì»´í¬?„Œ?Š¸ê°? ?—†?Šµ?‹ˆ?‹¤.", newItem);
+            Debug.LogWarning("ItemSpawner: ì•„ì´í…œì— Item ì»´í¬ë„ŒíŠ¸ê°€ ì—†ìŠµë‹ˆë‹¤.", newItem);
         }
 
         if (isDefective)
@@ -171,21 +171,21 @@ public class ItemSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// ProcessControllerê°? ?´? „ ?•„?´?…œ ?‡´ì¶?(?ƒ? ?„?‹¬/?ŒŒê´?) ?™„ë£? ?‹œ ?˜¸ì¶? (?‹¤?Œ ?‚¬?´?´ ë¶??’ˆ ?Š¤?° ?—ˆ?š©)
+    /// ProcessControllerê°€ ì´ì „ ì•„ì´í…œ í‡´ì¶œ(ìƒì ë„ë‹¬/íŒŒê´´) ì™„ë£Œ ì‹œ í˜¸ì¶œ (ë‹¤ìŒ ì‚¬ì´í´ ë¶€í’ˆ ìŠ¤í° í—ˆìš©)
     /// </summary>
     public void NotifyItemCleared()
     {
         readyToSpawn = true;
-        Debug.Log($"[ItemSpawner] ?Ÿ”? ?´? „ ë¶??’ˆ ?‡´ì¶? ?™„ë£? ?‹ ?˜¸ ?ˆ˜?‹  ?” ?‹¤?Œ ë¶??’ˆ ?Š¤?° ì¤?ë¹? ?™„ë£? (?¼?¸: {lineId})", this);
+        Debug.Log($"[ItemSpawner] ğŸ”” ì´ì „ ë¶€í’ˆ í‡´ì¶œ ì™„ë£Œ ì‹ í˜¸ ìˆ˜ì‹  â” ë‹¤ìŒ ë¶€í’ˆ ìŠ¤í° ì¤€ë¹„ ì™„ë£Œ (ë¼ì¸: {lineId})", this);
 
-        // ?Š¤?° ì½”ë£¨?‹´?´ ë©ˆì¶°?ˆ?„ ê²½ìš° ì¦‰ì‹œ ?¬ê°??™
+        // ìŠ¤í° ì½”ë£¨í‹´ì´ ë©ˆì¶°ìˆì„ ê²½ìš° ì¦‰ì‹œ ì¬ê°€ë™
         if (spawnRoutineInstance == null)
         {
             StartSpawnRoutine();
         }
     }
 
-    // Reset: ?ƒ?„±?œ ?•„?´?…œ ? •ë¦? ë°? ?Š¤?¬?„ˆ ì´ˆê¸°?™”
+    // Reset: ìƒì„±ëœ ì•„ì´í…œ ì •ë¦¬ ë° ìŠ¤í¬ë„ˆ ì´ˆê¸°í™”
     public void ClearSpawned()
     {
         StopAllCoroutines();
