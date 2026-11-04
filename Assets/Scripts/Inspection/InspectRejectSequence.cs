@@ -552,8 +552,7 @@ public partial class InspectRejectSequence : MonoBehaviour
         ReleasePartWithGravity(out string discardedPartId, out DefectType discardedDefect);
         yield return new WaitForSeconds(0.5f);
 
-        // 7. 폐기 카운트 집계 및 이벤트 버스 발행
-        ProcessCounters.Add(CounterType.DiscardedClaw);
+        // 7. 이벤트 버스 발행 (폐기 카운트는 폐기함 RejectController가 도착 시 집계)
         InspectEventBus.PublishExit(new PartExitEvent(discardedPartId, ExitReason.Discarded, discardedDefect, Time.time));
         Debug.LogWarning($"[InspectRejectSequence] 📢 폐기 배출 이벤트 발행 완료: {discardedPartId} (불량: {discardedDefect})");
 

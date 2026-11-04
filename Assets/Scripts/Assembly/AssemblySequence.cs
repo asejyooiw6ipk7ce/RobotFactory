@@ -1474,7 +1474,7 @@ public partial class AssemblySequence : MonoBehaviour
             ? currentPartInfo.id
             : (clawPart != null ? clawPart.name : "CLAW_PART");
 
-        ProcessCounters.Add(CounterType.DiscardedClaw);
+        // 클로 폐기 카운트는 폐기함 RejectController가 도착 시 집계
         InspectEventBus.PublishExit(new PartExitEvent(clawId, ExitReason.Discarded, DefectType.None, Time.time));
 
         if (currentBase != null)
