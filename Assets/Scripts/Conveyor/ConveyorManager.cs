@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -128,7 +128,35 @@ public class ConveyorManager : MonoBehaviour
         return line != null ? line.stopWaypointIndices : null;
     }
 
-    public bool IsStopWaypoint(ConveyorLineId lineId, int waypointIndex)
+    /// <summary>
+    /// 대상 물체가 불량품인지 종합 판정합니다. (Item, BaseInfo, PartInfo 결함 여부 확인)
+    /// </summary>
+    public static bool IsDefectiveItem(GameObject target)
+    {
+        if (target == null) return false;
+
+        Item item = target.GetComponent<Item>() 
+                 ?? target.GetComponentInParent<Item>() 
+                 ?? target.GetComponentInChildren<Item>();
+        if (item != null && item.itemType == ItemType.Defective)
+            return true;
+
+        BaseInfo baseInfo = target.GetComponent<BaseInfo>() 
+                         ?? target.GetComponentInParent<BaseInfo>() 
+                         ?? target.GetComponentInChildren<BaseInfo>();
+        if (baseInfo != null && baseInfo.defectType != DefectType.None)
+            return true;
+
+        PartInfo partInfo = target.GetComponent<PartInfo>() 
+                         ?? target.GetComponentInParent<PartInfo>() 
+                         ?? target.GetComponentInChildren<PartInfo>();
+        if (partInfo != null && partInfo.defectType != DefectType.None)
+            return true;
+
+        return false;
+    }
+
+    public bool IsStopWaypoint(ConveyorLineId lineId, int waypointIndex, GameObject itemObject = null)
     {
         ConveyorLine line = FindLine(lineId);
         if (line == null || line.stopWaypointIndices == null)
@@ -137,7 +165,15 @@ public class ConveyorManager : MonoBehaviour
         foreach (int stopIndex in line.stopWaypointIndices)
         {
             if (stopIndex == waypointIndex)
+            {
+                // Line C(완제품 라인): 조립성공품(양품)인 경우 푸셔/스토퍼 지점을 정지 없이 직진 통과
+                if (lineId == ConveyorLineId.LineC && itemObject != null && !IsDefectiveItem(itemObject))
+                {
+                    return false;
+                }
+
                 return true;
+            }
         }
 
         return false;
@@ -152,6 +188,13 @@ public class ConveyorManager : MonoBehaviour
         int waypointIndex,
         GameObject item)
     {
+        // Line C에서 조립성공품(양품)인 경우 스토퍼 상승 및 라인 정지를 생략
+        if (lineId == ConveyorLineId.LineC && item != null && !IsDefectiveItem(item))
+        {
+            Debug.Log($"[ConveyorManager] Line C 조립성공품('{item.name}') 도착: 스토퍼 상승 및 벨트 정지를 생략합니다.", this);
+            return;
+        }
+
         StopLine(lineId);
         RaiseStoppers(lineId);
 
