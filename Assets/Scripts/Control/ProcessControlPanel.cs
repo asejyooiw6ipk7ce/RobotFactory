@@ -8,7 +8,7 @@ public class ProcessControlPanel : MonoBehaviour
     [SerializeField] private ProcessController controller;
 
     private Button runButton;
-    private Button pauseButton;
+    // private Button pauseButton;
     private Button resetButton;
 
     // UIDocument�� rootVisualElement�� �غ�� �ڿ� ��ư�� ã���� Start���� ���ε�
@@ -23,10 +23,11 @@ public class ProcessControlPanel : MonoBehaviour
 
         var root = document.rootVisualElement;
         runButton = root.Q<Button>("btn-run");
-        pauseButton = root.Q<Button>("btn-pause");
+        // pauseButton = root.Q<Button>("btn-pause");
         resetButton = root.Q<Button>("btn-reset");
 
-        if (runButton == null || pauseButton == null || resetButton == null)
+        // if (runButton == null || pauseButton == null || resetButton == null)
+        if (runButton == null || resetButton == null)
         {
             Debug.LogError("ProcessControlPanel: UXML���� ��ư(btn-run / btn-pause / btn-reset)�� ã�� ���߽��ϴ�.", this);
             enabled = false;
@@ -34,7 +35,7 @@ public class ProcessControlPanel : MonoBehaviour
         }
 
         runButton.clicked += controller.Run;
-        pauseButton.clicked += controller.Pause;
+        // pauseButton.clicked += controller.Pause;
         resetButton.clicked += controller.ResetProcess;
         InspectEventBus.ProcessStateChanged += OnProcessStateChanged;
 
@@ -44,7 +45,7 @@ public class ProcessControlPanel : MonoBehaviour
     private void OnDestroy()
     {
         if (runButton != null) runButton.clicked -= controller.Run;
-        if (pauseButton != null) pauseButton.clicked -= controller.Pause;
+        // if (pauseButton != null) pauseButton.clicked -= controller.Pause;
         if (resetButton != null) resetButton.clicked -= controller.ResetProcess;
         InspectEventBus.ProcessStateChanged -= OnProcessStateChanged;
     }
@@ -55,7 +56,7 @@ public class ProcessControlPanel : MonoBehaviour
     private void UpdateButtons(ProcessState state)
     {
         runButton.SetEnabled(state == ProcessState.Stopped || state == ProcessState.Paused);
-        pauseButton.SetEnabled(state == ProcessState.Running);
+        // pauseButton.SetEnabled(state == ProcessState.Running);
         resetButton.SetEnabled(true);
     }
 }

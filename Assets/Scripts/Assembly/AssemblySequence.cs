@@ -1458,6 +1458,8 @@ public partial class AssemblySequence : MonoBehaviour
         if (clawPart != null)
         {
             clawPart.SetParent(null, true);
+            PartColliderUtil.EnableDropCollider(clawPart);
+
             var rb = clawPart.GetComponent<Rigidbody>();
             if (rb != null)
             {

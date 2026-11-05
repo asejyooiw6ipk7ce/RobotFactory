@@ -202,6 +202,8 @@ public class ProcessController : MonoBehaviour
             var baseItem = inspectionBaseObject.GetComponent<Item>();
 
             // 2) 부품2(베이스) 비전 검사
+            if(baseItem != null)
+                robotBase.defectType = baseItem.itemType == ItemType.Defective ? DefectType.PartLoss:DefectType.None;
             bool baseOk = camera2.InspectPart2(robotBase);
 
             // 검사 결과를 Item에 반영해야 푸셔(Item.itemType 기준)가 올바르게 판단함

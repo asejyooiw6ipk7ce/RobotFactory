@@ -251,9 +251,6 @@
 .ctrl-run { background-color: #15803d; }
 .ctrl-run:hover { background-color: var(--good); }
 
-.ctrl-pause { background-color: #a16207; }
-.ctrl-pause:hover { background-color: var(--warn); }
-
 .ctrl-last { margin-right: 0; }
 
 .ctrl-btn:disabled { opacity: 0.35; }
