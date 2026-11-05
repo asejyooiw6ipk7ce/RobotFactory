@@ -1176,7 +1176,7 @@ public partial class ArmIK : MonoBehaviour
         return (closingFinger.transform.rotation * slideAxisLocal).normalized;
     }
     #endregion
-
+    /*
     #region 화면 표시
 
     // =========================================================================
@@ -1192,4 +1192,5 @@ public partial class ArmIK : MonoBehaviour
     }
 
     #endregion
+    */
 }
