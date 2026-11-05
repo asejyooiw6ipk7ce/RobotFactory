@@ -36,26 +36,41 @@ public class RejectController : MonoBehaviour
             rb.useGravity = false;
         }
 
-        // 2. 상자 내부 감지용 BoxCollider(Trigger) 설정
-        // - 중요: 상자 바깥으로 트리거가 삐져나가 컨베이어를 지나가는 물체를 잘못 감지하지 않도록
-        //   벽면 안쪽(가로/세로 80% 크기)으로 안전하게 축소하고 내부 높이만 형성합니다.
+        // 2. 바닥의 물리 콜라이더는 유지하고, 상자 안쪽 감지용 Trigger를 별도로 둡니다.
+        // rejectBox 프리팹의 Plane에는 MeshCollider만 있으므로 BoxCollider를 추가해야 합니다.
         BoxCollider boxCol = GetComponent<BoxCollider>();
-        if (boxCol != null)
+        if (boxCol == null)
         {
-            boxCol.isTrigger = true;
-            float safeX = (boxCol.size.x >= 9f) ? 8.0f : boxCol.size.x * 0.85f;
-            float safeZ = (boxCol.size.z >= 9f) ? 8.0f : boxCol.size.z * 0.85f;
-            float safeHeight = 0.3f;
+            boxCol = gameObject.AddComponent<BoxCollider>();
 
-            boxCol.size = new Vector3(safeX, safeHeight, safeZ);
-            boxCol.center = new Vector3(boxCol.center.x, safeHeight * 0.5f, boxCol.center.z);
+            MeshFilter meshFilter = GetComponent<MeshFilter>();
+            Vector3 localBoundsSize = meshFilter != null && meshFilter.sharedMesh != null
+                ? meshFilter.sharedMesh.bounds.size
+                : Vector3.one;
+
+            float triggerX = Mathf.Max(0.1f, localBoundsSize.x * 0.85f);
+            float triggerZ = Mathf.Max(0.1f, localBoundsSize.z * 0.85f);
+            const float triggerHeight = 1f;
+
+            boxCol.size = new Vector3(triggerX, triggerHeight, triggerZ);
+            boxCol.center = new Vector3(0f, triggerHeight * 0.5f, 0f);
         }
+
+        boxCol.isTrigger = true;
     }
 
     private void OnTriggerEnter(Collider other)
     {
         if (other == null) return;
         ProcessIncomingObject(other);
+    }
+
+    // Plane의 MeshCollider는 상자 바닥으로 유지합니다.
+    // Trigger 경계를 놓친 물체도 바닥에 닿으면 같은 폐기 처리를 시작합니다.
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision == null || collision.collider == null) return;
+        ProcessIncomingObject(collision.collider);
     }
 
     /// <summary>
@@ -111,6 +126,19 @@ public class RejectController : MonoBehaviour
         if (mover != null)
         {
             mover.enabled = false;
+        }
+
+        Rigidbody targetRigidbody = targetRoot.GetComponent<Rigidbody>()
+                                  ?? targetRoot.GetComponentInChildren<Rigidbody>();
+        if (targetRigidbody != null)
+        {
+            targetRigidbody.isKinematic = false;
+            targetRigidbody.useGravity = true;
+
+            Vector3 velocity = targetRigidbody.linearVelocity;
+            targetRigidbody.linearVelocity = new Vector3(0f, velocity.y, 0f);
+            targetRigidbody.angularVelocity = Vector3.zero;
+            targetRigidbody.WakeUp();
         }
 
         // 2. 상자 바닥으로 자연스럽게 떨어지는 모션 대기
