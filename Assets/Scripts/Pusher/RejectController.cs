@@ -87,7 +87,7 @@ public class RejectController : MonoBehaviour
         if (processedObjects.Contains(targetRoot) || !targetRoot.activeSelf) return;
         processedObjects.Add(targetRoot);
 
-        // 카운터 증가: 폐기·출하는 상자에 도착할 때 한 번만 센다 (불량 개수는 Camera3 판정 시점에 셈)
+        // 카운터 증가: 폐기·출하는 상자에 도착할 때 한 번만 센다 
         CounterType? counted = ResolveCounter(targetRoot);
         if (counted.HasValue) ProcessCounters.Add(counted.Value);
         string countLog = counted.HasValue ? $"{counted.Value} +1" : "카운트 없음 (완제품 불량은 Camera3 판정 시 집계)";
