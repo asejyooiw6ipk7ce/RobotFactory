@@ -329,7 +329,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1347157081329836052, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 2919070260653855085, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_Name
@@ -345,7 +345,7 @@ PrefabInstance:
       objectReference: {fileID: 1846249303}
     - target: {fileID: 2949397204198766371, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 1
+      value: 0.5
       objectReference: {fileID: 0}
     - target: {fileID: 4243883089910336487, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_LocalPosition.x

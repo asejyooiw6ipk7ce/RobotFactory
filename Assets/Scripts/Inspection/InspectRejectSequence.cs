@@ -415,6 +415,8 @@ public partial class InspectRejectSequence : MonoBehaviour
             }
 
             part.SetParent(null, true);
+            PartColliderUtil.EnableDropCollider(part);  //폐기 낙하 시 BoxCollider 켜기
+            
             var rb = part.GetComponent<Rigidbody>();
             if (rb != null)
             {

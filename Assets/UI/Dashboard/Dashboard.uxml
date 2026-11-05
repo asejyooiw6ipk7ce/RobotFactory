@@ -21,7 +21,6 @@
         <!-- 공정 제어 -->
         <ui:VisualElement class="controls">
             <ui:Button name="btn-run" text="가동" class="ctrl-btn ctrl-run" />
-            <ui:Button name="btn-pause" text="일시정지" class="ctrl-btn ctrl-pause" />
             <ui:Button name="btn-reset" text="리셋" class="ctrl-btn ctrl-last" />
         </ui:VisualElement>
 

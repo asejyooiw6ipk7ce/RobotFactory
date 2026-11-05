@@ -143,6 +143,7 @@ public class Dashboard : MonoBehaviour
 
     private void OnCounterAdded(CounterType type)
     {
+        Debug.Log($"[Dashboard] counter received: {type}");   // 임시 확인용
         stats.Increment(type);
         Refresh();
     }
