@@ -78,9 +78,11 @@ public class LineCRejectController2 : MonoBehaviour
         if (processedObjects.Contains(targetRoot) || !targetRoot.activeSelf) return;
         processedObjects.Add(targetRoot);
 
-        // 카운터 증가 (Defected 또는 Shipped)
-        ProcessCounters.Add(counterType);
-        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ 카운터: {counterType} +1, {destroyDelay:F1}초 후 파괴 예정", this);
+        // 카운터 증가: 출하(Shipped)만 도착 시 집계한다.
+        // 불량(Defective)은 Camera3Inspector가 판정 시점에 이미 집계하므로 여기서 또 세면 이중 집계된다.
+        if (counterType != CounterType.Defective)
+            ProcessCounters.Add(counterType);
+        Debug.Log($"[RejectController] 📦 완제품/부품 '{targetRoot.name}' 상자 도달 감지! ➔ 카운터: {counterType} (도착 집계: {counterType != CounterType.Defective}), {destroyDelay:F1}초 후 파괴 예정", this);
 
         // 상자 내부로 자연스럽게 낙하하도록 지연 파괴 코루틴 시작
         StartCoroutine(DestroyAfterDrop(targetRoot, counterType, destroyDelay));
