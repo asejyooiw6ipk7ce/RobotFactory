@@ -237,7 +237,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1347157081329836052, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 0.282
+      value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 2919070260653855085, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_Name
@@ -253,7 +253,7 @@ PrefabInstance:
       objectReference: {fileID: 1846249303}
     - target: {fileID: 2949397204198766371, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 1.248
+      value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 4243883089910336487, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1084,7 +1084,7 @@ MonoBehaviour:
   testResult: 0
   testDefect: 0
   autoDetectPartDefect: 1
-  reject: {fileID: 0}
+  reject: {fileID: 2128226039}
 --- !u!1 &944747189
 GameObject:
   m_ObjectHideFlags: 0
@@ -3407,6 +3407,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1065821878}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2128226039 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 373900037729318013, guid: 51b7d2229e011a040b2c5e4538fcb335, type: 3}
+  m_PrefabInstance: {fileID: 1820597022}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6185e905f221c74389bde0d56182fa1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InspectRejectSequence
 --- !u!1001 &6439463876531907213
 PrefabInstance:
   m_ObjectHideFlags: 0

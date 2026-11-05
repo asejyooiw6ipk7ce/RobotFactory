@@ -1177,19 +1177,4 @@ public partial class ArmIK : MonoBehaviour
     }
     #endregion
 
-    #region 화면 표시
-
-    // =========================================================================
-    // [OnGUI] Unity Game 화면 좌상단에 실시간 IK 상태 및 오차 정보를 GUI 박스로 표시
-    // =========================================================================
-    void OnGUI()
-    {
-        GUILayout.BeginArea(new Rect(300, 10, 290, 95), GUI.skin.box);
-        GUILayout.Label(!Ready ? "IK: 회전 방향 확인 중..." : IsMoving ? "IK: 이동 중" : "IK: 대기");
-        GUILayout.Label($"마지막 오차: {PositionError * 100f:F2} cm / 수직 {AngleError:F1}도 / 손목 {YawError:F1}도");
-        GUILayout.Label($"경로 계산: {(LastSolveOk ? "성공" : "닿을 수 없음")}");
-        GUILayout.EndArea();
-    }
-
-    #endregion
 }
