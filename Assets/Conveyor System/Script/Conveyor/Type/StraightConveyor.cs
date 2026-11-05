@@ -16,8 +16,10 @@ namespace ConveyorSystem
         private void Reset()
         {
             ConveyorType = ConveyorType.Straight;
-            // If there are no points, create them by default
+            // If there are no points, create them by default (에디터 전용 메서드이므로 빌드에서는 제외)
+#if UNITY_EDITOR
             CreateDefaultPoints();
+#endif
         }
 
         /// <summary>
