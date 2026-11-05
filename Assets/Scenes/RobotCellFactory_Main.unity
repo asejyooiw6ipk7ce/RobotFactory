@@ -253,7 +253,7 @@ PrefabInstance:
       objectReference: {fileID: 1846249303}
     - target: {fileID: 2949397204198766371, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: defectiveProbability
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4243883089910336487, guid: 67cb7785ba757594db100bb8ccb29d1e, type: 3}
       propertyPath: m_LocalPosition.x
@@ -527,12 +527,26 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 9.999999, y: 2.2204459e-16, z: 9.999999}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &553226642
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 553226630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b921104be88441c78c41e5b5f7b53121, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RejectController
+  counterType: 4
+  destroyDelay: 0.8
 --- !u!114 &559968643 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6078184918730043880, guid: c6d3b89b2692e2840a177a8bd1bfa1ff, type: 3}
@@ -1918,6 +1932,9 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 553226642}
     - targetCorrespondingSourceObject: {fileID: 3155840648103825213, guid: 256ab3c858105aa4da3014c6e9216131, type: 3}
       insertIndex: -1
       addedObject: {fileID: 553226637}
