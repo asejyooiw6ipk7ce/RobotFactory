@@ -20,8 +20,11 @@ MonoBehaviour:
     rid: 1194679948732268616
   m_ActivePlatformGuid: 
   m_AdditionalPlatformBuildSettings: []
-  m_OverrideGlobalSceneList: 0
-  m_Scenes: []
+  m_OverrideGlobalSceneList: 1
+  m_Scenes:
+  - m_enabled: 1
+    m_path: Assets/Scenes/RobotCellFactory_Main.unity
+    m_guid: 0450cc482161ba04d818529009f34fde
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
