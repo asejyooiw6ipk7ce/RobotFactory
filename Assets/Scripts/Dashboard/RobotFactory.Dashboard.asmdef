@@ -1,0 +1,17 @@
+{
+    "name": "RobotFactory.Dashboard",
+    "rootNamespace": "RobotFactory",
+    "references": [
+        "RobotFactory.Common",
+        "RobotFactory.Events"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,79 @@
+using System.Collections.Generic;
+using System.Linq;
+
+/// 검사 이벤트 하나씩 받아 통계를 계산해준다 (집계) (FR-12).
+public class StatusTracker
+{
+    private readonly int recentCount;
+    private readonly Dictionary<StationId, int> inspected = new Dictionary<StationId, int>();  
+    private readonly Dictionary<StationId, int> defects = new Dictionary<StationId, int>();
+    private readonly Dictionary<StationId, Queue<bool>> recent = new Dictionary<StationId, Queue<bool>>(); // true = 불량
+    private readonly Dictionary<CounterType, int> counters = new Dictionary<CounterType, int>();
+    private int finalInspected;
+    private int finalPassed;
+
+    public StatusTracker(int recentCount)
+    {
+        this.recentCount = recentCount;
+    }
+
+    /// 최종 양품률(%). 완제품 검사가 없으면 null
+    public double? FinalYieldRate =>
+        finalInspected == 0 ? (double?)null : finalPassed * 100.0 / finalInspected;
+
+    /// 스테이션 불량률(%). 검사가 없으면 null
+    public double? StationDefectRate(StationId station)
+    {
+        int total = Get(inspected, station);
+        return total == 0 ? (double?)null : Get(defects, station) * 100.0 / total;
+    }
+
+    /// 최근 검사 창(recentCount) 안의 불량률(%)
+    public double RecentFailRate(StationId station)
+    {
+        int n = RecentCount(station);
+        return n == 0 ? 0 : RecentFailCount(station) * 100.0 / n;
+    }
+
+    // 최근 검사 수
+    public int RecentCount(StationId station) =>
+        recent.TryGetValue(station, out var queue) ? queue.Count : 0;
+
+    public int RecentFailCount(StationId station) =>
+        recent.TryGetValue(station, out var queue) ? queue.Count(isFail => isFail) : 0;
+
+    public int Count(CounterType type) => Get(counters, type);
+
+    public void Record(InspectEvent e)
+    {
+        bool fail = e.result == InspectResult.Fail;
+
+        Increase(inspected, e.stationId);
+        if (fail) Increase(defects, e.stationId);
+
+        if (!recent.TryGetValue(e.stationId, out var queue))
+        {
+            queue = new Queue<bool>();
+            recent[e.stationId] = queue;
+        }
+        queue.Enqueue(fail);
+        while (queue.Count > recentCount) queue.Dequeue();
+
+        if (e.stationId == StationId.Station3)
+        {
+            finalInspected++;
+            if (!fail) finalPassed++;
+        }
+    }
+
+    public void Increment(CounterType type) => Increase(counters, type);
+
+    private static void Increase<TKey>(Dictionary<TKey, int> dict, TKey key)
+    {
+        dict.TryGetValue(key, out int n);
+        dict[key] = n + 1;
+    }
+
+    private static int Get<TKey>(Dictionary<TKey, int> dict, TKey key) =>
+        dict.TryGetValue(key, out int n) ? n : 0;
+}

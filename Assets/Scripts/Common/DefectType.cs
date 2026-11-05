@@ -1,0 +1,1 @@
+public enum DefectType {None, PartLoss, AngleError}

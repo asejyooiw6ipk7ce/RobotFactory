@@ -1,0 +1,16 @@
+{
+    "name": "RobotFactory.PartSupply",
+    "rootNamespace": "RobotFactory",
+    "references": [
+        "RobotFactory.Common"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

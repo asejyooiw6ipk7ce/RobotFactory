@@ -1,0 +1,282 @@
+/* 다크 테마 색 토큰 */
+:root {
+    --bg: #111827;
+    --card: #1f2937;
+    --card-border: #374151;
+    --text: #f3f4f6;
+    --text-dim: #9ca3af;
+    --good: #22c55e;
+    --bad: #ef4444;
+    --warn: #ca8a04;
+    --robot-work: #3b82f6;
+    --robot-assemble: #f97316;
+    --alert-bg: #3b1010;
+    --alert-border: #ef4444;
+}
+
+/* 한글 폰트: Assets/Fonts의 Pretendard 폰트 자산을 지정한다. */
+.dash {
+    -unity-font-definition: url("project://database/Assets/Fonts/Pretendard-Regular SDF.asset");
+    width: 460px;
+    height: 100%;
+    padding: 12px;
+    background-color: var(--bg);
+    color: var(--text);
+    flex-direction: column;
+}
+
+.card {
+    background-color: var(--card);
+    border-width: 1px;
+    border-color: var(--card-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
+}
+
+.section-title {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin: 6px 2px 6px 2px;
+}
+
+/* ── 상단: 공정 상태 / 가동 시간 / 전체 수율 ── */
+.header {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px 4px;
+}
+
+.header-item {
+    flex-grow: 1;
+    flex-basis: 0;
+    align-items: center;
+}
+
+.header-item-mid {
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-color: var(--card-border);
+}
+
+.header-label {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.header-value {
+    height: 30px;
+    font-size: 22px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: var(--text);
+}
+
+.header-kpi { color: var(--good); }
+.header-kpi.is-empty { color: var(--text-dim); }
+
+/* ── 라인별 열 ── */
+.row {
+    flex-direction: row;
+}
+
+.col {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin-right: 8px;
+    padding: 10px;
+}
+
+.col-last {
+    margin-right: 0;
+}
+
+.col-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: var(--text);
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+    border-bottom-width: 1px;
+    border-color: var(--card-border);
+}
+
+.stat-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 24px;
+}
+
+.stat-name {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.stat-value {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--text);
+}
+
+.stat-value.is-bad  { color: var(--bad); }
+.stat-value.is-good { color: var(--good); }
+
+.card-station.is-alert {
+    border-color: var(--bad);
+    border-width: 2px;
+}
+
+/* ── 배지 (공정 상태 / 로봇 상태) ── */
+.badge {
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: var(--text);
+    background-color: var(--card-border);
+}
+
+.badge-lg {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 15px;
+    font-size: 14px;
+}
+
+.proc-stopped { background-color: var(--card-border); }
+.proc-running { background-color: var(--good); }
+.proc-paused  { background-color: var(--warn); }
+.proc-alarm   { background-color: var(--bad); }
+
+.state-idle       { background-color: var(--card-border); }
+.state-moving     { background-color: #0d9488; }
+.state-working    { background-color: var(--robot-work); }
+.state-assembling { background-color: var(--robot-assemble); }
+.state-error      { background-color: var(--bad); }
+
+/* ── 로봇 ── */
+.robot-card {
+    padding: 2px 12px;
+}
+
+.robot-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 38px;
+}
+
+.robot-row-first {
+    border-bottom-width: 1px;
+    border-color: var(--card-border);
+}
+
+.robot-name {
+    font-size: 14px;
+    color: var(--text);
+}
+
+/* ── 알림: 평소엔 중립, 알림이 있을 때만 빨강 ── */
+.alert-box {
+    flex-grow: 1;
+}
+
+.alert-box.has-alert {
+    background-color: var(--alert-bg);
+    border-color: var(--alert-border);
+}
+
+.alert-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.alert-item {
+    flex-direction: row;
+    align-items: center;
+    background-color: #5c1a1a;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 6px;
+}
+
+.alert-tag {
+    background-color: var(--bad);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-right: 8px;
+}
+
+.alert-message {
+    color: var(--text);
+    font-size: 13px;
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.alert-empty {
+    color: var(--text-dim);
+    font-size: 13px;
+}
+
+/* ── 공정 제어 버튼 ── */
+.controls {
+    flex-direction: row;
+    margin-bottom: 8px;
+}
+
+.ctrl-btn {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 36px;
+    margin: 0 6px 0 0;
+    border-width: 0;
+    border-radius: 8px;
+    font-size: 14px;
+    -unity-font-style: bold;
+    color: var(--text);
+    background-color: var(--card-border);
+}
+
+.ctrl-btn:hover { background-color: #4b5563; }
+
+.ctrl-run { background-color: #15803d; }
+.ctrl-run:hover { background-color: var(--good); }
+
+.ctrl-last { margin-right: 0; }
+
+.ctrl-btn:disabled { opacity: 0.35; }
+
+/* ── 현장 화면 (오른쪽 위 떠 있는 패널) ── */
+.cam-panel {
+    -unity-font-definition: url("project://database/Assets/Fonts/Pretendard-Regular SDF.asset");
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 560px;
+    color: var(--text);
+}
+
+.cam-tabs { flex-direction: row; margin: 8px 0; }
+
+.cam-tab {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 28px;
+    margin: 0 4px 0 0;
+    border-width: 0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background-color: var(--card-border);
+}
+.cam-tab:hover { background-color: #4b5563; }
+.cam-tab.is-active { background-color: var(--robot-work); color: var(--text); -unity-font-style: bold; }
