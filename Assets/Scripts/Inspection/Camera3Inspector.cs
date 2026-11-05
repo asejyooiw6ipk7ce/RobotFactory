@@ -213,12 +213,12 @@ public class Camera3Inspector : MonoBehaviour
         }
 
         // 7. 불량(Defective) 카운터 및 공정 이탈 이벤트(PartExitEvent) 발행 (FR-10, FR-12)
-        //    불량 개수는 판정 시점에 센다. 출하(Shipped)는 출하 상자(RejectController)에 도착할 때 센다.
+        //    량 개수는 불량 상자 도착 시 센다(LineCRejectController). 출하(Shipped)는 출하 상자(RejectController)에 도착할 때 센다.
         if (publishBranchCounterAndExit)
         {
             ExitReason exitReason = isPass ? ExitReason.Shipped : ExitReason.Defective;
 
-            if (!isPass) ProcessCounters.Add(CounterType.Defective);
+            // if (!isPass) ProcessCounters.Add(CounterType.Defective);
             InspectEventBus.PublishExit(new PartExitEvent(partId, exitReason, defect, Time.time));
 
             // 조립에 사용되어 완제품에 통합된 부품1(클로)도 공정 위 대기 부품에서 소모되었음을 알림
